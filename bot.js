@@ -1,5 +1,7 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { Client, Collection, GatewayIntentBits, MessageFlags } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -9,6 +11,22 @@ const client = new Client({
     GatewayIntentBits.DirectMessages,
   ],
 });
+
+// Load every command module in src/commands. Each exports:
+//   data     — SlashCommandBuilder (name, description, options)
+//   execute  — async (interaction) => void  (reply via editReply; already deferred)
+//   ephemeral — optional, defer as ephemeral (admin/private commands)
+client.commands = new Collection();
+const commandsDir = path.join(__dirname, 'src', 'commands');
+for (const file of fs.readdirSync(commandsDir).filter((f) => f.endsWith('.js'))) {
+  const command = require(path.join(commandsDir, file));
+  if (command?.data?.name && typeof command.execute === 'function') {
+    client.commands.set(command.data.name, command);
+  } else {
+    console.warn(`[BOT] Skipping ${file}: missing data or execute`);
+  }
+}
+console.log(`[BOT] Loaded ${client.commands.size} commands: ${[...client.commands.keys()].join(', ')}`);
 
 client.on('ready', async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
@@ -27,42 +45,39 @@ client.on('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  console.log(`\n[INTERACTION] Command: ${interaction.commandName}, User: ${interaction.user.tag}`);
+  const command = client.commands.get(interaction.commandName);
+  if (!command) {
+    console.warn(`[BOT] Unknown command: ${interaction.commandName}`);
+    return;
+  }
 
-  // Defer immediately — this gives us Discord's 15-minute edit window instead
-  // of the 3s initial-reply window, so a slow network round-trip (which our
-  // connection to Discord occasionally hits) doesn't cause "Unknown interaction".
+  console.log(`[INTERACTION] /${interaction.commandName} by ${interaction.user.tag} in guild ${interaction.guildId}`);
+
+  // Defer immediately — 15-minute edit window instead of the 3s initial-reply
+  // window, so slow network round-trips never cause "Unknown interaction".
   try {
-    await interaction.deferReply();
+    await interaction.deferReply(command.ephemeral ? { flags: MessageFlags.Ephemeral } : undefined);
   } catch (error) {
-    console.error('Failed to defer interaction (likely already expired):', error.message);
+    console.error(`[BOT] Failed to defer /${interaction.commandName}:`, error.message);
     return;
   }
 
   try {
-    if (interaction.commandName === 'ping') {
-      await interaction.editReply('🏓 Pong!');
-    } else if (interaction.commandName === 'hello') {
-      await interaction.editReply(`👋 Hello ${interaction.user.username}!`);
-    } else {
-      console.log(`Unknown command: ${interaction.commandName}`);
-      await interaction.editReply('Unknown command.');
-    }
-    console.log(`${interaction.commandName} command sent successfully`);
+    await command.execute(interaction);
+    console.log(`[BOT] /${interaction.commandName} completed`);
   } catch (error) {
-    console.error('Error handling interaction:', error);
+    console.error(`[BOT] Error in /${interaction.commandName}:`, error);
     try {
-      await interaction.editReply('There was an error executing this command!');
+      await interaction.editReply('⚠️ Something went wrong running this command. Please try again — if it keeps failing, contact ClutchGG support.');
     } catch (e) {
-      console.error('Failed to send error message:', e);
+      console.error('[BOT] Failed to send error reply:', e.message);
     }
   }
 });
 
-client.on('error', error => console.error('Discord client error:', error));
-client.on('warn', warn => console.warn('Discord warning:', warn));
-
-process.on('unhandledRejection', error => console.error('Unhandled rejection:', error));
+client.on('error', (error) => console.error('Discord client error:', error));
+client.on('warn', (warn) => console.warn('Discord warning:', warn));
+process.on('unhandledRejection', (error) => console.error('Unhandled rejection:', error));
 
 console.log('[BOT] Starting bot with token:', process.env.DISCORD_TOKEN ? '✓ Found' : '✗ Missing');
 client.login(process.env.DISCORD_TOKEN);
