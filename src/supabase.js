@@ -63,11 +63,24 @@ async function getDiscordLink(tournamentId) {
   return data;
 }
 
-async function getDiscordLinkByGuild(guildId) {
+// All tournaments linked to a guild — a server can host several (an organizer
+// running multiple events). Newest updated first.
+async function getDiscordLinksByGuild(guildId) {
   const { data, error } = await supabase()
     .from('tournament_discord_links')
     .select('*')
     .eq('discord_guild_id', guildId)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function getLinkByClaimCode(tournamentId, code) {
+  const { data, error } = await supabase()
+    .from('tournament_discord_links')
+    .select('*')
+    .eq('tournament_id', tournamentId)
+    .eq('claim_code', code)
     .maybeSingle();
   if (error) throw error;
   return data;
@@ -86,6 +99,7 @@ module.exports = {
   getTournamentById,
   upsertTournament,
   getDiscordLink,
-  getDiscordLinkByGuild,
+  getDiscordLinksByGuild,
+  getLinkByClaimCode,
   upsertDiscordLink,
 };

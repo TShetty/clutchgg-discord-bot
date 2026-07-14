@@ -24,7 +24,12 @@ async function requireLinkedTournament(interaction) {
     );
     return null;
   }
-  return { ...ctx, tournament };
+  // Multiple tournaments linked to this server: commands act on the active
+  // one; surface that so nobody edits the wrong event by accident.
+  const multiNote = ctx.allLinks.length > 1
+    ? `\n-# Acting on **${tournament.name}** — this server has ${ctx.allLinks.length} linked tournaments, switch with \`/use-tournament\`.`
+    : '';
+  return { ...ctx, tournament, multiNote };
 }
 
 module.exports = { requireLinkedTournament };

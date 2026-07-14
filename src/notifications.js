@@ -10,7 +10,8 @@
 // Every send is deduped through bot_notification_log, so restarts never
 // double-post.
 const { EmbedBuilder } = require('discord.js');
-const { supabase, getTournaments } = require('./supabase');
+const crypto = require('node:crypto');
+const { supabase, getTournaments, upsertDiscordLink } = require('./supabase');
 const { matchUrl, tournamentUrl, deriveScore, realMatches, computeRRStandings, textTable } = require('./tournament-utils');
 const { matchMvp } = require('./mvp');
 
@@ -303,11 +304,28 @@ async function tick(client) {
       if (linkedIds.has(req.created_tournament_id)) continue;
       if (await alreadySent(req.created_tournament_id, 'onboard-dm', req.id)) continue;
       const t = byId.get(req.created_tournament_id);
+
+      // Issue a claim code up front so the superadmin only has to forward it —
+      // the organizer self-links with /claim-tournament in their own server.
+      const code = crypto.randomBytes(6).toString('base64url');
+      await upsertDiscordLink({
+        tournament_id: req.created_tournament_id,
+        discord_user_ids: [],
+        discord_guild_id: null,
+        channels: {},
+        claim_code: code,
+        is_active: true,
+        locked: false,
+      });
+
       const embed = new EmbedBuilder()
         .setTitle('🆕 Tournament ready to link to Discord')
         .setDescription(
-          `**${req.tournament_name}** (organizer: ${req.organizer_name}) was approved and their form lists Discord IDs: \`${req.discord_ids}\`.\n\n` +
-          `Run \`/link-tournament tournament_id:${req.created_tournament_id}\` in their server to hand them the bot.` +
+          `**${req.tournament_name}** (organizer: ${req.organizer_name}) was approved. Their form lists Discord IDs: \`${req.discord_ids}\`.\n\n` +
+          `**Send the organizer this claim code (privately):** \`${code}\`\n` +
+          'They run this in THEIR server (after inviting the bot):\n' +
+          `\`/claim-tournament tournament_id:${req.created_tournament_id} code:${code} announce_channel:#channel\`\n\n` +
+          `Or link it yourself with \`/link-tournament tournament_id:${req.created_tournament_id}\` in their server.` +
           (t ? `\n${tournamentUrl(t.id)}` : '')
         )
         .setColor(0x00b0f4);

@@ -3,10 +3,14 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { requireLinkedTournament } = require('../context');
 
+// Per-user cooldown so the DM pipe to superadmins can't be spammed.
+const COOLDOWN_MS = 10 * 60 * 1000;
+const lastReportAt = new Map(); // userId → timestamp
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('report-issue')
-    .setDescription('Report wrong stats or data on the website to the ClutchGG admins')
+    .setDescription('Report wrong stats or data on the website to the ClutchGG admins (organizers only)')
     .addStringOption((o) =>
       o.setName('issue').setDescription('What\'s wrong? Include the match/player and what the correct value should be').setRequired(true)
     )
@@ -15,6 +19,16 @@ module.exports = {
   async execute(interaction) {
     const ctx = await requireLinkedTournament(interaction);
     if (!ctx) return;
+    if (!ctx.isOrganizer) {
+      await interaction.editReply('⛔ Only this tournament\'s organizers can file reports. Tell an organizer and they\'ll escalate it.');
+      return;
+    }
+    const last = lastReportAt.get(interaction.user.id) ?? 0;
+    const waitMs = COOLDOWN_MS - (Date.now() - last);
+    if (waitMs > 0) {
+      await interaction.editReply(`⏳ You reported recently — try again in ${Math.ceil(waitMs / 60000)} minute(s).`);
+      return;
+    }
 
     const issue = interaction.options.getString('issue');
     const link = interaction.options.getString('link');
@@ -53,6 +67,7 @@ module.exports = {
     if (delivered === 0) {
       await interaction.editReply('❌ Could not deliver the report (superadmins may have DMs closed). Please contact ClutchGG support directly.');
     } else {
+      lastReportAt.set(interaction.user.id, Date.now());
       await interaction.editReply(`✅ Report sent to ${delivered} admin(s). They\'ll look into it — thanks for flagging!`);
     }
   },
