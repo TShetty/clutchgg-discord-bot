@@ -40,6 +40,14 @@ client.on('ready', async () => {
   } catch (e) {
     console.error('[BOT] Warm-up call failed:', e.message);
   }
+
+  // Automatic notifications (result cards, reminders, end-of-day, onboarding).
+  // Requires DB credentials; skipped cleanly when they're absent (local dev).
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    require('./src/notifications').start(client);
+  } else {
+    console.warn('[BOT] Notifications disabled — missing Supabase env vars');
+  }
 });
 
 client.on('interactionCreate', async (interaction) => {

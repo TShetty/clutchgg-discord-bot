@@ -11,8 +11,11 @@ const SECTIONS = [
       '`/roster team:<name>` — a team\'s players, Riot IDs and roles',
       '`/bracket` — the bracket with current results',
       '`/matches show:<upcoming|live|today|completed>` — match list with website links',
+      '`/match-info match:<n>` — one match in full: maps, MVP, stream, clips',
+      '`/next-match team:<name>` — a team\'s next match + recent form',
       '`/standings` — round robin / group stage points table',
       '`/top-players by:<acs|kd|kills>` — tournament stat leaders',
+      '`/mvp` — the tournament MVP race (same scoring as the website)',
     ],
   },
   {
@@ -32,19 +35,22 @@ const SECTIONS = [
       '`/update-match` — set date, time, bo1/bo3/bo5, stream link, clips',
       '`/finish-match` — record a result; the score is validated against clutchgg.in data',
       '`/post` — publish upcoming matches / standings / top players / a result card to your tournament channel',
+      '`/notifications` — toggle the automatic posts on/off',
       '`/report-issue` — flag wrong stats on the website to ClutchGG admins',
+    ],
+  },
+  {
+    name: '🤖 Automatic (no command needed)',
+    lines: [
+      '⏰ Reminder 15 minutes before each scheduled match (tags team roles if they exist)',
+      '🏆 Result card the moment a match finishes on clutchgg.in — score, MVP + stats, match link',
+      '🌙 End-of-day summary with standings once all of a day\'s matches are done',
     ],
   },
   {
     name: '🔧 Superadmin',
     lines: [
       '`/link-tournament` — connect a ClutchGG tournament to this server: organizers + posting channels',
-    ],
-  },
-  {
-    name: '🚧 Coming soon',
-    lines: [
-      'Automatic 15-minute match reminders, auto-posted result cards with MVP callouts, end-of-day standings.',
     ],
   },
 ];
