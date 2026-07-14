@@ -16,15 +16,35 @@ const SECTIONS = [
     ],
   },
   {
-    name: '🔧 Setup (superadmin)',
+    name: '⚙️ Tournament setup (organizers)',
     lines: [
-      '`/link-tournament` — connect a ClutchGG tournament to this server: who the organizers are and where the bot posts',
+      '`/set-details` — edit description, dates, prize pool, max teams, status',
+      '`/import-teams` — import teams from .xlsx (run without a file to get the template)',
+      '`/update-roster` — add/rename/remove teams & players, set Riot IDs and roles',
+      '`/set-bracket` — generate the bracket: single/double elimination or round robin',
+      '`/assign-slot` — place teams into bracket slots (no options = list open slots)',
+      '`/lock-tournament` — freeze all bot changes once setup is complete',
     ],
   },
   {
-    name: '🚧 Coming soon (organizers)',
+    name: '🎮 Running matches (organizers)',
     lines: [
-      'Tournament setup, team import (.xlsx), roster edits, bracket generation, match updates, finishing matches with score validation, posting results & standings to your channels, automatic match reminders and result announcements.',
+      '`/update-match` — set date, time, bo1/bo3/bo5, stream link, clips',
+      '`/finish-match` — record a result; the score is validated against clutchgg.in data',
+      '`/post` — publish upcoming matches / standings / top players / a result card to your tournament channel',
+      '`/report-issue` — flag wrong stats on the website to ClutchGG admins',
+    ],
+  },
+  {
+    name: '🔧 Superadmin',
+    lines: [
+      '`/link-tournament` — connect a ClutchGG tournament to this server: organizers + posting channels',
+    ],
+  },
+  {
+    name: '🚧 Coming soon',
+    lines: [
+      'Automatic 15-minute match reminders, auto-posted result cards with MVP callouts, end-of-day standings.',
     ],
   },
 ];
