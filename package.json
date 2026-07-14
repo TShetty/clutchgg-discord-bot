@@ -1,0 +1,20 @@
+{
+  "name": "clutchgg-discord-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "register": "node register-commands.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.18.1",
+    "discord.js": "^14.26.5",
+    "dotenv": "^17.4.2"
+  }
+}
