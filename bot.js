@@ -50,6 +50,54 @@ client.on('ready', async () => {
   }
 });
 
+// Discord's hard limits on a reply. A command that overflows these throws
+// "Invalid Form Body ... BASE_TYPE_MAX_LENGTH"; we trim to avoid it entirely.
+const MAX_CONTENT = 2000;
+const MAX_EMBED_DESC = 4096;
+const MAX_EMBED_FIELD = 1024;
+const ELLIPSIS = '\n…(truncated)';
+
+const trimStr = (s, max) =>
+  typeof s === 'string' && s.length > max ? s.slice(0, max - ELLIPSIS.length) + ELLIPSIS : s;
+
+// Clamp every string in a reply payload to Discord's limits so no command can
+// ever fail with a length error, whatever data the tournament holds.
+function clampPayload(payload) {
+  if (typeof payload === 'string') return trimStr(payload, MAX_CONTENT);
+  if (!payload || typeof payload !== 'object') return payload;
+  if (payload.content) payload.content = trimStr(payload.content, MAX_CONTENT);
+  for (const embed of payload.embeds ?? []) {
+    // discord.js EmbedBuilder keeps its raw object under .data
+    const e = embed?.data ?? embed;
+    if (!e || typeof e !== 'object') continue;
+    if (e.description) e.description = trimStr(e.description, MAX_EMBED_DESC);
+    for (const f of e.fields ?? []) {
+      if (f?.value) f.value = trimStr(f.value, MAX_EMBED_FIELD);
+    }
+  }
+  return payload;
+}
+
+// Turn a thrown error into one short, actionable line for the user.
+function friendlyError(error) {
+  const msg = error?.rawError?.message || error?.message || 'Unknown error';
+  // Discord form-body validation (length, bad URL, empty field, etc.)
+  if (/Invalid Form Body/i.test(msg) || error?.code === 50035) {
+    if (/MAX_LENGTH/i.test(JSON.stringify(error?.rawError ?? msg))) {
+      return '⚠️ That result was too long to show in full. Ask ClutchGG support to shorten it, or try a narrower query.';
+    }
+    return '⚠️ Discord rejected the response format. Please report this to ClutchGG support.';
+  }
+  if (/fetch failed|ECONNREFUSED|ETIMEDOUT|network/i.test(msg)) {
+    return '⚠️ Couldn\'t reach the ClutchGG servers. Please try again in a moment.';
+  }
+  if (/permission/i.test(msg)) {
+    return '⚠️ I\'m missing a Discord permission needed for this. Check the bot\'s role settings.';
+  }
+  // Fallback: still surface the real reason, trimmed, so it's not opaque.
+  return `⚠️ ${trimStr(msg, 300)}`;
+}
+
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -70,13 +118,18 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
+  // Wrap editReply so EVERY command's replies are auto-clamped to Discord's
+  // limits — no command needs to slice() its own strings.
+  const rawEditReply = interaction.editReply.bind(interaction);
+  interaction.editReply = (payload) => rawEditReply(clampPayload(payload));
+
   try {
     await command.execute(interaction);
     console.log(`[BOT] /${interaction.commandName} completed`);
   } catch (error) {
     console.error(`[BOT] Error in /${interaction.commandName}:`, error);
     try {
-      await interaction.editReply('⚠️ Something went wrong running this command. Please try again — if it keeps failing, contact ClutchGG support.');
+      await rawEditReply(friendlyError(error));
     } catch (e) {
       console.error('[BOT] Failed to send error reply:', e.message);
     }
