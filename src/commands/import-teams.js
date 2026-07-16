@@ -42,6 +42,11 @@ module.exports = {
       await interaction.editReply('❌ Please upload an Excel file (`.xlsx`). Run `/import-teams` without a file to get the template.');
       return;
     }
+    // Size cap: a legit team sheet is a few KB; refuse anything unreasonable.
+    if (file.size > 2 * 1024 * 1024) {
+      await interaction.editReply('❌ File too large (max 2 MB). A teams sheet should be well under that.');
+      return;
+    }
 
     const res = await fetch(file.url);
     if (!res.ok) {
@@ -62,6 +67,20 @@ module.exports = {
 
     const mode = interaction.options.getString('mode') ?? 'add';
     const newTeams = toTournamentTeams(parsed);
+
+    // Replace-mode guard: once a bracket exists its matches reference the
+    // current team ids — wiping teams would orphan the bracket. Same reason
+    // the website locks structure once things are generated.
+    if (mode === 'replace') {
+      const t0 = ctx.tournament;
+      if (t0.generatedBracket || t0.stage1Bracket || t0.stage2Bracket || t0.knockoutBracket) {
+        await interaction.editReply(
+          '❌ Can\'t replace all teams — a bracket already exists and references the current teams. ' +
+          'Regenerate the bracket first (`/set-bracket overwrite:true`) or add teams with `mode:add`.'
+        );
+        return;
+      }
+    }
 
     let skipped = [];
     let total = 0;

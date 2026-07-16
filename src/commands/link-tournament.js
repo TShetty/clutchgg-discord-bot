@@ -88,6 +88,8 @@ module.exports = {
         schedule: schedule.id,
         results: results.id,
       },
+      claim_code: null, // manual link supersedes any outstanding claim code
+      is_active: true,
     });
 
     const embed = new EmbedBuilder()

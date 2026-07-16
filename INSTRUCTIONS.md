@@ -89,10 +89,25 @@ The website's pulled data always wins over a manually-typed score.
 ## Authorization model
 
 - `tournament_discord_links` maps tournament_id → organizer Discord user IDs +
-  guild + purpose-tagged channel IDs. Populated from the registration form
-  (new tournaments) or by superadmin `/link-tournament` (existing ones).
-- Every write command checks `interaction.user.id` against the link table for
-  that tournament. Non-organizers get a polite ephemeral refusal.
+  guild + purpose-tagged channel IDs + is_active + one-time claim_code.
+- Onboarding paths (both end with a linked server):
+  1. **Self-service (preferred):** approval poller issues a one-time claim
+     code and DMs it to superadmins → organizer runs `/claim-tournament` in
+     THEIR server → becomes first organizer, code is consumed. Superadmins can
+     mint codes manually with `/generate-claim-code` (`relink:true` to move a
+     linked tournament).
+  2. **Manual:** superadmin runs `/link-tournament` inside the target server.
+- A guild may host MULTIPLE tournaments. Commands act on the ACTIVE link
+  (`is_active`, most-recently-updated as fallback); organizers switch with
+  `/use-tournament`. Never assume one-link-per-guild (`.maybeSingle()` on the
+  guild query is a bug).
+- Organizers self-manage their team via `/organizers add/remove/list` — the
+  last organizer cannot be removed (except by a superadmin).
+- Every write command checks `interaction.user.id` against the active link.
+  Non-organizers get a polite ephemeral refusal. `/report-issue` is
+  organizer-only with a 10-minute per-user cooldown (DM-spam guard).
+- Commands are registered GLOBALLY (`npm run register`) so new organizer
+  servers get them; `--guild` registers to the dev guild for instant testing.
 - The bot uses the Supabase service_role key (Railway env var only — NEVER in
   git) and enforces authorization itself; it does not impersonate organizer
   auth accounts.

@@ -37,6 +37,14 @@ const SECTIONS = [
       '`/post` — publish upcoming matches / standings / top players / a result card to your tournament channel',
       '`/notifications` — toggle the automatic posts on/off',
       '`/report-issue` — flag wrong stats on the website to ClutchGG admins',
+      '`/organizers` — list/add/remove who can run organizer commands',
+      '`/use-tournament` — switch the active tournament when this server hosts several',
+    ],
+  },
+  {
+    name: '🚀 Getting started (new organizers)',
+    lines: [
+      '`/claim-tournament` — link YOUR server using the one-time claim code ClutchGG sent you. You become the organizer; then follow the posted setup guide.',
     ],
   },
   {
@@ -50,7 +58,8 @@ const SECTIONS = [
   {
     name: '🔧 Superadmin',
     lines: [
-      '`/link-tournament` — connect a ClutchGG tournament to this server: organizers + posting channels',
+      '`/link-tournament` — manually connect a tournament to a server (organizers + channels)',
+      '`/generate-claim-code` — issue a one-time code so an organizer can self-link their server',
     ],
   },
 ];
