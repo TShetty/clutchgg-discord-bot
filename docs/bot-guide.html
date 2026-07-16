@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ClutchGG Tournament Bot — Organizer Guide</title>
+<style>
+  :root {
+    --red: #ff4655;
+    --ink: #14171f;
+    --muted: #5b6472;
+    --line: #e3e7ee;
+    --bg-soft: #f6f8fb;
+    --green: #16a34a;
+    --amber: #d97706;
+    --blue: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.5;
+    margin: 0;
+  }
+  h1, h2, h3, h4 { line-height: 1.2; margin: 0 0 .4em; }
+  h2 {
+    font-size: 17pt;
+    color: var(--ink);
+    border-bottom: 3px solid var(--red);
+    padding-bottom: .25em;
+    margin-top: 0;
+  }
+  h3 { font-size: 12.5pt; color: var(--ink); margin-top: 1.1em; }
+  h4 { font-size: 10.5pt; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 1em; }
+  p { margin: 0 0 .6em; }
+  code {
+    font-family: "Cascadia Code", "Consolas", monospace;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 9.2pt;
+    color: #b3253a;
+  }
+  .muted { color: var(--muted); }
+  ul, ol { margin: 0 0 .7em; padding-left: 1.3em; }
+  li { margin-bottom: .25em; }
+
+  /* ── Page structure ── */
+  .page { padding: 16mm 15mm; }
+  @page { size: A4; margin: 0; }
+  @media print {
+    .page-break { break-before: page; }
+  }
+
+  /* ── Cover ── */
+  .cover {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: linear-gradient(150deg, #1a1d27 0%, #2a1116 100%);
+    color: #fff;
+    padding: 0 20mm;
+  }
+  .cover .badge {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--red);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-size: 9pt;
+    padding: 5px 12px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+  }
+  .cover h1 { font-size: 34pt; margin: 0 0 10px; color: #fff; }
+  .cover .sub { font-size: 14pt; color: #c9ced9; font-weight: 400; max-width: 480px; }
+  .cover .foot { margin-top: 48px; color: #8b93a4; font-size: 9.5pt; }
+  .cover .foot strong { color: #fff; }
+
+  /* ── Callouts ── */
+  .note, .warn, .tip {
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: .8em 0;
+    font-size: 9.8pt;
+    border: 1px solid;
+  }
+  .note { background: #eff6ff; border-color: #bfdbfe; }
+  .warn { background: #fff7ed; border-color: #fed7aa; }
+  .tip  { background: #f0fdf4; border-color: #bbf7d0; }
+  .note strong { color: var(--blue); }
+  .warn strong { color: var(--amber); }
+  .tip strong { color: var(--green); }
+
+  /* ── Command reference tables ── */
+  table { width: 100%; border-collapse: collapse; margin: .5em 0 1.2em; font-size: 9.3pt; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg-soft); font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 2px solid var(--line); }
+  td.cmd { white-space: nowrap; }
+  tr { break-inside: avoid; }
+
+  .cat-head {
+    background: var(--ink);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-weight: 700;
+    font-size: 11pt;
+    margin: 1.4em 0 .4em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Workflow step cards ── */
+  .step {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--red);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 0 0 12px;
+    break-inside: avoid;
+  }
+  .step .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: var(--red);
+    color: #fff;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 11pt;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .step h3 { display: inline; font-size: 12pt; vertical-align: middle; margin: 0; }
+  .step .body { margin-top: 8px; }
+  .example {
+    background: #12151c;
+    color: #e6e9ef;
+    border-radius: 5px;
+    padding: 9px 12px;
+    font-family: "Cascadia Code","Consolas",monospace;
+    font-size: 8.8pt;
+    margin: 8px 0 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.55;
+  }
+  .example .c { color: #ff6b7a; }       /* command */
+  .example .o { color: #7dd3fc; }       /* option name */
+  .example .v { color: #a7f3d0; }       /* value */
+  .example .cm { color: #8b93a4; }      /* comment */
+
+  .toc { columns: 2; column-gap: 24px; font-size: 10pt; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc .tocrow { display: flex; justify-content: space-between; border-bottom: 1px dotted var(--line); padding: 3px 0; break-inside: avoid; }
+  .kicker { color: var(--red); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 8.5pt; margin-bottom: 2px; }
+  .legend span { display:inline-block; margin-right:14px; font-size:9pt; }
+  .pill { display:inline-block; font-size:7.5pt; font-weight:700; padding:1px 6px; border-radius:10px; vertical-align:middle; }
+  .pill.org { background:#fee2e2; color:#b91c1c; }
+  .pill.any { background:#dcfce7; color:#15803d; }
+  .pill.sa  { background:#e0e7ff; color:#4338ca; }
+  .pill.eph { background:#f1f5f9; color:#475569; }
+  footer.pf { text-align:center; color:var(--muted); font-size:8.5pt; margin-top:8mm; border-top:1px solid var(--line); padding-top:4mm; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ COVER ═══════════════ -->
+<section class="cover">
+  <span class="badge">Organizer Guide</span>
+  <h1>ClutchGG<br>Tournament Bot</h1>
+  <div class="sub">Run your entire Valorant tournament from Discord — teams, brackets, matches, stats and automatic announcements — without opening the admin portal.</div>
+  <div class="foot">
+    Everything the bot shows and edits mirrors <strong>clutchgg.in</strong> exactly.<br>
+    Type <strong>/help</strong> in Discord any time for a live command list.
+  </div>
+</section>
+
+<!-- ═══════════════ CONTENTS ═══════════════ -->
+<section class="page page-break">
+  <div class="kicker">Contents</div>
+  <h2>What's in this guide</h2>
+  <div class="toc">
+    <div class="tocrow"><a href="#intro">1 &nbsp; Before you start</a></div>
+    <div class="tocrow"><a href="#workflow">2 &nbsp; New organizer: step-by-step setup</a></div>
+    <div class="tocrow"><a href="#daily">3 &nbsp; Running the tournament day-to-day</a></div>
+    <div class="tocrow"><a href="#auto">4 &nbsp; Automatic announcements</a></div>
+    <div class="tocrow"><a href="#ref-setup">5 &nbsp; Command reference — Setup</a></div>
+    <div class="tocrow"><a href="#ref-teams">6 &nbsp; Command reference — Teams</a></div>
+    <div class="tocrow"><a href="#ref-match">7 &nbsp; Command reference — Matches</a></div>
+    <div class="tocrow"><a href="#ref-info">8 &nbsp; Command reference — Info & stats</a></div>
+    <div class="tocrow"><a href="#ref-admin">9 &nbsp; Command reference — Admin</a></div>
+    <div class="tocrow"><a href="#faq">10 &nbsp; Troubleshooting & FAQ</a></div>
+  </div>
+
+  <div class="note" style="margin-top:18px">
+    <strong>How to read a command.</strong> A slash command looks like
+    <code>/update-match match:3 time:18:30</code>. The part after the slash is the
+    <em>command</em>; each <code>name:value</code> after it is an <em>option</em>.
+    Discord shows the option boxes for you as you type — you don't have to memorise them.
+  </div>
+
+  <p class="legend" style="margin-top:14px">
+    <span><span class="pill any">ANYONE</span> usable by any server member</span>
+    <span><span class="pill org">ORGANIZER</span> organizers only</span>
+    <span><span class="pill sa">SUPERADMIN</span> ClutchGG staff only</span>
+    <span><span class="pill eph">PRIVATE</span> reply only you can see</span>
+  </p>
+</section>
+
+<!-- ═══════════════ 1. INTRO ═══════════════ -->
+<section class="page page-break" id="intro">
+  <div class="kicker">Section 1</div>
+  <h2>Before you start</h2>
+
+  <p>The ClutchGG bot is the Discord-side control room for your tournament. Anything an organizer
+  can do in the website admin portal — set details, import teams, build the bracket, record results —
+  can be done here with a slash command, and the bot keeps everything in sync with
+  <code>clutchgg.in</code>.</p>
+
+  <h3>The three things you need</h3>
+  <ol>
+    <li><strong>Your tournament ID</strong> — the code in your tournament's page URL
+      (<span class="muted">clutchgg.in/tournament/<strong>abc123</strong></span>).</li>
+    <li><strong>A claim code</strong> — a one-time code ClutchGG sends you to link your server
+      (see Step&nbsp;1 of the workflow).</li>
+    <li><strong>The bot invited to your Discord server</strong> with permission to read channels,
+      send messages, embed links and (optionally) manage roles.</li>
+  </ol>
+
+  <div class="tip">
+    <strong>Golden rule.</strong> The website is always the source of truth. When you record a
+    result, the bot checks it against the map data on clutchgg.in and refuses a score that doesn't
+    match. If the website is wrong, fix it there (or use <code>/report-issue</code>) — never force a
+    wrong score.
+  </div>
+
+  <h3>Who can do what</h3>
+  <ul>
+    <li><span class="pill any">ANYONE</span> — info commands (teams, bracket, matches, stats). Safe for players and viewers.</li>
+    <li><span class="pill org">ORGANIZER</span> — anything that changes the tournament. You become an organizer when you claim the tournament; add co-organizers with <code>/organizers add</code>.</li>
+    <li><span class="pill sa">SUPERADMIN</span> — ClutchGG staff onboarding tools.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ 2. WORKFLOW ═══════════════ -->
+<section class="page page-break" id="workflow">
+  <div class="kicker">Section 2 — do these in order</div>
+  <h2>New organizer: step-by-step setup</h2>
+  <p>Follow these steps top to bottom, the same order as the website admin portal. Each step builds
+  on the one before it — you can't build a bracket before teams exist, and you can't assign teams to
+  slots before a bracket exists.</p>
+
+  <div class="step">
+    <span class="num">1</span><h3>Link your server (claim the tournament)</h3>
+    <div class="body">
+      <p>ClutchGG DMs you a one-time claim code. In <strong>your own server</strong>, run
+      <code>/claim-tournament</code> with your tournament ID, the code, and the channel where the bot
+      should post announcements. You become the first organizer.</p>
+      <div class="example"><span class="c">/claim-tournament</span> <span class="o">tournament_id:</span><span class="v">abc123</span> <span class="o">code:</span><span class="v">Xk9f2Lp8qR</span> <span class="o">announce_channel:</span><span class="v">#tournament</span></div>
+      <p class="muted">Optional: add <code>schedule_channel:</code> and <code>results_channel:</code>
+      to split schedule posts and result cards into separate channels.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">2</span><h3>Set the tournament details</h3>
+    <div class="body">
+      <p>Fill in description, dates, prize pool and format with <code>/set-details</code>. Only the
+      options you fill in are changed — you can run it several times to fill things in gradually.</p>
+      <div class="example"><span class="c">/set-details</span> <span class="o">description:</span><span class="v">Summer Valorant Cup 2026</span> <span class="o">start_date:</span><span class="v">2026-08-01</span> <span class="o">max_teams:</span><span class="v">16</span> <span class="o">event_type:</span><span class="v">online</span> <span class="o">prize_total:</span><span class="v">50000</span> <span class="o">prize_currency:</span><span class="v">INR</span> <span class="o">prize_places:</span><span class="v">1:25000, 2:15000, 3:10000</span></div>
+      <p class="muted">Dates are <code>YYYY-MM-DD</code>. Prize places are
+      <code>position:amount</code> pairs separated by commas.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">3</span><h3>Import your teams</h3>
+    <div class="body">
+      <p>Run <code>/import-teams</code> <em>with no file first</em> — the bot replies with the
+      <code>.xlsx</code> template (same columns as the website: Team Name, Player Name 1–7, Riot ID 1–7,
+      Role 1–7). Fill it in, then run the command again and attach it.</p>
+      <div class="example"><span class="cm"># 1) get the template</span>
+<span class="c">/import-teams</span>
+<span class="cm"># 2) upload the filled file</span>
+<span class="c">/import-teams</span> <span class="o">file:</span><span class="v">teams.xlsx</span> <span class="o">mode:</span><span class="v">add to existing teams</span></div>
+      <div class="warn"><strong>Photos aren't imported via Excel</strong> — upload player/team photos
+      from the website edit section, exactly like the website rule. Use <code>mode:replace</code>
+      only if you want to wipe and re-import all teams.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">4</span><h3>Generate the bracket</h3>
+    <div class="body">
+      <p>Pick the format with <code>/set-bracket</code>. For a simple one-stage event just choose the
+      type. For a two-stage event (group stage → playoffs) set <code>stage:</code> and run it once per stage.</p>
+      <div class="example"><span class="cm"># single-stage single elimination</span>
+<span class="c">/set-bracket</span> <span class="o">type:</span><span class="v">single elimination</span>
+<span class="cm"># or a round robin league, 3 points per win</span>
+<span class="c">/set-bracket</span> <span class="o">type:</span><span class="v">round robin</span> <span class="o">points_per_win:</span><span class="v">3</span>
+<span class="cm"># two-stage: group stage that qualifies 8 teams, then playoffs</span>
+<span class="c">/set-bracket</span> <span class="o">type:</span><span class="v">round robin</span> <span class="o">stage:</span><span class="v">stage 1</span> <span class="o">qualifiers:</span><span class="v">8</span>
+<span class="c">/set-bracket</span> <span class="o">type:</span><span class="v">single elimination</span> <span class="o">stage:</span><span class="v">stage 2</span></div>
+      <p class="muted">Replacing an existing bracket needs <code>overwrite:true</code> — it deletes
+      that stage's matches, so the bot makes you confirm.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">5</span><h3>Place teams into the bracket</h3>
+    <div class="body">
+      <p>For elimination brackets, seed teams into round-1 slots with <code>/assign-slot</code>. Run it
+      with no options to see the list of open slots and their numbers.</p>
+      <div class="example"><span class="cm"># see open slots</span>
+<span class="c">/assign-slot</span>
+<span class="cm"># put "Velocity Gaming" into match 1, top slot</span>
+<span class="c">/assign-slot</span> <span class="o">match:</span><span class="v">1</span> <span class="o">slot:</span><span class="v">1</span> <span class="o">team:</span><span class="v">velocity</span></div>
+      <p class="muted">Team names match partially — <code>velocity</code> finds "Velocity Gaming".
+      Round robin brackets fill automatically, so you can skip this step for them.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">6</span><h3>Schedule the matches</h3>
+    <div class="body">
+      <p>Set each match's date, time, series format and stream link with <code>/update-match</code>.
+      Run with no options to list matches and their numbers.</p>
+      <div class="example"><span class="c">/update-match</span> <span class="o">match:</span><span class="v">1</span> <span class="o">date:</span><span class="v">2026-08-01</span> <span class="o">time:</span><span class="v">18:30</span> <span class="o">format:</span><span class="v">best of 3</span> <span class="o">stream:</span><span class="v">https://youtube.com/watch?v=…</span></div>
+      <div class="note"><strong>Times are India Standard Time (IST)</strong> by default — the same
+      wall-clock time your players see on the website. Reminders and the "LIVE" post fire based on
+      this. (A ClutchGG admin can change the zone with the <code>BOT_TIMEZONE</code> setting.)</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">7</span><h3>Create team roles (optional but recommended)</h3>
+    <div class="body">
+      <p>Run <code>/create-team-roles</code> to make a mentionable Discord role for every team. Then
+      assign each team's players to their role. Now the 15-minute match reminder can <strong>ping the
+      two teams playing</strong>.</p>
+      <div class="example"><span class="c">/create-team-roles</span></div>
+      <p class="muted">Needs the bot to have the "Manage Roles" permission. After it runs, assign
+      members to the new roles in Server Settings → Members.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">8</span><h3>Announce the schedule</h3>
+    <div class="body">
+      <p>Post the upcoming-matches announcement to your channel so everyone sees the schedule with
+      live website links.</p>
+      <div class="example"><span class="c">/post</span> <span class="o">what:</span><span class="v">upcoming matches</span></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">9</span><h3>Lock the tournament when setup is done</h3>
+    <div class="body">
+      <p>Once details, teams, bracket and matchups all exist, freeze bot-side changes so nothing is
+      edited by accident during the event.</p>
+      <div class="example"><span class="c">/lock-tournament</span> <span class="o">action:</span><span class="v">lock</span></div>
+      <p class="muted">You can always <code>/lock-tournament action:unlock</code> to make changes again.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 3. DAILY ═══════════════ -->
+<section class="page page-break" id="daily">
+  <div class="kicker">Section 3</div>
+  <h2>Running the tournament day-to-day</h2>
+
+  <h3>When a match finishes</h3>
+  <p>Enter the map results on the website (or let the Valorant stat pull do it), then record the
+  series result in Discord. The bot validates your score against the website's map data and advances
+  the bracket automatically.</p>
+  <div class="example"><span class="cm"># list matches waiting for a result</span>
+<span class="c">/finish-match</span>
+<span class="cm"># record match 3 as a 2–1 win for the first team</span>
+<span class="c">/finish-match</span> <span class="o">match:</span><span class="v">3</span> <span class="o">score:</span><span class="v">2-1</span></div>
+  <div class="warn"><strong>If the bot rejects your score,</strong> it's because clutchgg.in shows
+  something different. Re-check the map results on the website — the website wins. Only use
+  <code>no_stats_override:true</code> when a match genuinely has no map data and you just need to
+  record the series winner.</div>
+
+  <h3>Sharing results and standings</h3>
+  <p>Post anything to your channel on demand with <code>/post</code>:</p>
+  <div class="example"><span class="c">/post</span> <span class="o">what:</span><span class="v">standings table</span>
+<span class="c">/post</span> <span class="o">what:</span><span class="v">top players</span>
+<span class="c">/post</span> <span class="o">what:</span><span class="v">match result</span> <span class="o">match:</span><span class="v">3</span></div>
+
+  <h3>Fixing things mid-event</h3>
+  <ul>
+    <li>Wrong roster? <code>/update-roster</code> to add/rename/remove teams and players.</li>
+    <li>Reschedule a match? <code>/update-match match:5 time:20:00</code>.</li>
+    <li>Add a highlight clip? <code>/update-match match:5 clip_title:Ace! clip_url:…</code>.</li>
+    <li>Wrong stats on the website? <code>/report-issue</code> flags it to ClutchGG staff.</li>
+    <li>Add a co-organizer? <code>/organizers add</code>.</li>
+  </ul>
+
+  <div class="note"><strong>Multiple tournaments in one server?</strong> Commands act on the
+  <em>active</em> tournament. Switch which one with <code>/use-tournament</code>.</div>
+</section>
+
+<!-- ═══════════════ 4. AUTO ═══════════════ -->
+<section class="page" id="auto">
+  <div class="kicker">Section 4</div>
+  <h2>Automatic announcements</h2>
+  <p>Once your server is linked, the bot posts these on its own — no command needed. Every one can be
+  switched on or off.</p>
+
+  <table>
+    <tr><th>Post</th><th>When it fires</th><th>Where</th></tr>
+    <tr><td>⏰ <strong>Match reminder</strong></td><td>15 minutes before a scheduled match. Pings the two teams' roles if they exist.</td><td>Schedule channel</td></tr>
+    <tr><td>🔴 <strong>Live announcement</strong></td><td>The moment a match's start time passes (10-minute grace window — never fires on old matches or restarts).</td><td>Schedule channel</td></tr>
+    <tr><td>🏆 <strong>Result card</strong></td><td>The moment a match finishes on clutchgg.in — score, MVP + stats, and a unique flavour line.</td><td>Results channel</td></tr>
+    <tr><td>🌙 <strong>End-of-day summary</strong></td><td>Once all of a day's matches are complete — with the standings table.</td><td>Announce channel</td></tr>
+  </table>
+
+  <h3>Turning them on and off</h3>
+  <p>Use <code>/notifications</code>. With no options it shows the current on/off state of all four.
+  Toggle one, or all at once:</p>
+  <div class="example"><span class="cm"># see current settings</span>
+<span class="c">/notifications</span>
+<span class="cm"># turn off just the live announcements</span>
+<span class="c">/notifications</span> <span class="o">kind:</span><span class="v">live-match announcements</span> <span class="o">state:</span><span class="v">off</span>
+<span class="cm"># turn everything off (e.g. during a break)</span>
+<span class="c">/notifications</span> <span class="o">kind:</span><span class="v">everything (all of the above)</span> <span class="o">state:</span><span class="v">off</span></div>
+</section>
+
+<!-- ═══════════════ 5–9. COMMAND REFERENCE ═══════════════ -->
+<section class="page page-break">
+  <div class="kicker">Sections 5–9</div>
+  <h2>Full command reference</h2>
+  <p class="muted">Every command, its options and who can use it. Options in <strong>bold</strong> are
+  required; the rest are optional. Most write commands reply privately (only you see them).</p>
+
+  <div class="cat-head" id="ref-setup">⚙️ Setup <span class="pill org">ORGANIZER</span></div>
+  <table>
+    <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
+    <tr><td class="cmd"><code>/set-details</code></td><td>Update tournament details — only the fields you fill in change. Options: <code>description</code>, <code>start_date</code> (YYYY-MM-DD), <code>max_teams</code>, <code>event_type</code> (online/offline/hybrid), <code>location</code>, <code>prize_total</code>, <code>prize_currency</code> (INR/USD/EUR/GBP), <code>prize_places</code> (e.g. <span class="muted">1:25000, 2:10000</span>), <code>status</code> (planning/registration/in-progress/completed).</td></tr>
+    <tr><td class="cmd"><code>/import-teams</code></td><td>Import teams from an <code>.xlsx</code> file (run with no file to get the template). Options: <code>file</code>, <code>mode</code> (add to existing / replace all).</td></tr>
+    <tr><td class="cmd"><code>/set-bracket</code></td><td>Generate the bracket. Options: <strong><code>type</code></strong> (single elim / double elim / round robin), <code>stage</code> (single / stage 1 / stage 2), <code>qualifiers</code> (stage 1 only), <code>points_per_win</code> (round robin only, default 3), <code>slots</code> (force bracket size), <code>overwrite</code> (needed to replace a bracket).</td></tr>
+    <tr><td class="cmd"><code>/assign-slot</code></td><td>Put a team into a bracket slot (no options = list open slots). Options: <code>match</code>, <code>slot</code> (1 top / 2 bottom), <code>team</code>, <code>stage</code>.</td></tr>
+    <tr><td class="cmd"><code>/create-team-roles</code></td><td>Create a mentionable Discord role per team so reminders can tag them. No options. Needs "Manage Roles".</td></tr>
+    <tr><td class="cmd"><code>/lock-tournament</code></td><td>Lock or unlock all bot-side changes. Option: <strong><code>action</code></strong> (lock / unlock).</td></tr>
+  </table>
+
+  <div class="cat-head" id="ref-teams">👥 Teams &amp; rosters <span class="pill org">ORGANIZER</span></div>
+  <table>
+    <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
+    <tr><td class="cmd"><code>/update-roster</code></td><td>Edit teams and players. Options (pick one action): <code>add-team</code>, <code>rename-team</code>, <code>remove-team</code>, <code>add-player</code>, <code>edit-player</code>, <code>remove-player</code>. Set names, Riot IDs and roles.</td></tr>
+  </table>
+
+  <div class="cat-head" id="ref-match">🎮 Matches <span class="pill org">ORGANIZER</span></div>
+  <table>
+    <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
+    <tr><td class="cmd"><code>/update-match</code></td><td>Set a match's schedule and links (no options = list matches). Options: <code>match</code>, <code>date</code> (YYYY-MM-DD), <code>time</code> (HH:MM, 24h), <code>format</code> (bo1/bo3/bo5), <code>stream</code> (YouTube), <code>clip_title</code> + <code>clip_url</code> (add a highlight).</td></tr>
+    <tr><td class="cmd"><code>/finish-match</code></td><td>Record a result — validated against clutchgg.in (no options = list pending). Options: <code>match</code>, <code>score</code> (e.g. <span class="muted">2-1</span>, first team first), <code>no_stats_override</code> (finish a match with no website map data — use with care).</td></tr>
+    <tr><td class="cmd"><code>/post</code></td><td>Publish an announcement to a channel. Options: <strong><code>what</code></strong> (upcoming matches / standings / top players / match result), <code>match</code> (for a result), <code>channel</code> (announce / schedule / results).</td></tr>
+    <tr><td class="cmd"><code>/notifications</code></td><td>Turn automatic posts on/off (no options = show current state). Options: <code>kind</code> (reminders / live / results / daily / everything), <code>state</code> (on / off).</td></tr>
+  </table>
+
+  <div class="cat-head" id="ref-info">📊 Info &amp; stats <span class="pill any">ANYONE</span></div>
+  <table>
+    <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
+    <tr><td class="cmd"><code>/tournament</code></td><td>Tournament details — dates, prize pool, format, teams, status. No options.</td></tr>
+    <tr><td class="cmd"><code>/teams</code></td><td>List all registered teams. No options.</td></tr>
+    <tr><td class="cmd"><code>/roster</code></td><td>A team's players (name, Riot ID, role). Option: <strong><code>team</code></strong> (partial match).</td></tr>
+    <tr><td class="cmd"><code>/bracket</code></td><td>The bracket with current results. No options.</td></tr>
+    <tr><td class="cmd"><code>/matches</code></td><td>List matches. Option: <code>show</code> (upcoming / live / today / completed).</td></tr>
+    <tr><td class="cmd"><code>/match-info</code></td><td>One match in full — maps, scores, MVP, stream, clips (no options = list). Option: <code>match</code>.</td></tr>
+    <tr><td class="cmd"><code>/next-match</code></td><td>A team's next match and recent form. Option: <strong><code>team</code></strong>.</td></tr>
+    <tr><td class="cmd"><code>/standings</code></td><td>Round robin / group stage points table. No options.</td></tr>
+    <tr><td class="cmd"><code>/top-players</code></td><td>Stat leaders. Option: <code>by</code> (ACS / K/D / kills).</td></tr>
+    <tr><td class="cmd"><code>/mvp</code></td><td>Tournament MVP race — same scoring model as the website. No options.</td></tr>
+    <tr><td class="cmd"><code>/player</code></td><td>A player's card — team, role, stats, profile link. Option: <strong><code>name</code></strong> (name or Riot ID).</td></tr>
+    <tr><td class="cmd"><code>/compare</code></td><td>Two players' stats side by side. Options: <strong><code>player1</code></strong>, <strong><code>player2</code></strong>.</td></tr>
+    <tr><td class="cmd"><code>/team-stats</code></td><td>A team's record — series &amp; map wins, round diff, placement. Option: <strong><code>team</code></strong>.</td></tr>
+    <tr><td class="cmd"><code>/head-to-head</code></td><td>Past meetings between two teams. Options: <strong><code>team1</code></strong>, <strong><code>team2</code></strong>.</td></tr>
+    <tr><td class="cmd"><code>/clips</code></td><td>A match's highlight clips (no options = list matches with clips). Option: <code>match</code>.</td></tr>
+    <tr><td class="cmd"><code>/match-card</code></td><td>Post the shareable match card image (no options = list matches). Option: <code>match</code>.</td></tr>
+    <tr><td class="cmd"><code>/help</code></td><td>Live, in-Discord list of every command. No options.</td></tr>
+    <tr><td class="cmd"><code>/ping</code></td><td>Check the bot is online. No options.</td></tr>
+  </table>
+
+  <div class="cat-head" id="ref-admin">🔧 Admin &amp; onboarding</div>
+  <table>
+    <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
+    <tr><td class="cmd"><code>/claim-tournament</code> <span class="pill org">ORG</span></td><td>Link YOUR server with a claim code. Options: <strong><code>tournament_id</code></strong>, <strong><code>code</code></strong>, <strong><code>announce_channel</code></strong>, <code>schedule_channel</code>, <code>results_channel</code>.</td></tr>
+    <tr><td class="cmd"><code>/organizers</code> <span class="pill org">ORG</span></td><td>Manage who can run organizer commands. Options: <code>list</code>, <code>add</code>, <code>remove</code>. The last organizer can't be removed.</td></tr>
+    <tr><td class="cmd"><code>/use-tournament</code> <span class="pill org">ORG</span></td><td>Switch the active tournament when a server hosts several. Option: <code>tournament_id</code> (no option = list).</td></tr>
+    <tr><td class="cmd"><code>/report-issue</code> <span class="pill org">ORG</span></td><td>Flag wrong website stats to ClutchGG staff. Options: <strong><code>issue</code></strong>, <code>link</code>. (10-minute cooldown.)</td></tr>
+    <tr><td class="cmd"><code>/link-tournament</code> <span class="pill sa">SA</span></td><td>Manually link a tournament to a server. Options: <strong><code>tournament_id</code></strong>, <strong><code>organizers</code></strong>, <strong><code>announce_channel</code></strong>, <code>schedule_channel</code>, <code>results_channel</code>.</td></tr>
+    <tr><td class="cmd"><code>/generate-claim-code</code> <span class="pill sa">SA</span></td><td>Issue a one-time claim code for an organizer. Options: <strong><code>tournament_id</code></strong>, <code>relink</code>.</td></tr>
+  </table>
+</section>
+
+<!-- ═══════════════ 10. FAQ ═══════════════ -->
+<section class="page page-break" id="faq">
+  <div class="kicker">Section 10</div>
+  <h2>Troubleshooting &amp; FAQ</h2>
+
+  <h4>A command isn't showing up when I type "/"</h4>
+  <p>New commands can take a few minutes to appear after the bot updates. Close and reopen Discord to
+  refresh. If it still doesn't appear, a ClutchGG admin may need to re-register commands.</p>
+
+  <h4>The bot says "Only organizers can use this command"</h4>
+  <p>You're not on the organizer list for the active tournament. Whoever claimed the tournament can add
+  you with <code>/organizers add</code>.</p>
+
+  <h4>My score was rejected</h4>
+  <p>This is by design — the score didn't match the map data on clutchgg.in. Fix the map results on
+  the website, then run <code>/finish-match</code> again. The website is always the source of truth.</p>
+
+  <h4>Reminders / LIVE posts fired at the wrong time</h4>
+  <p>Match times are read in India Standard Time by default (the wall-clock time on the website). If
+  your event runs in a different zone, ask a ClutchGG admin to set <code>BOT_TIMEZONE</code>.</p>
+
+  <h4>Reminders aren't pinging the teams</h4>
+  <p>Run <code>/create-team-roles</code>, then assign each team's players to their role. The reminder
+  can only tag a role once it exists and members are in it.</p>
+
+  <h4>Nothing is auto-posting</h4>
+  <p>Check <code>/notifications</code> — a type may be switched off. Also confirm the bot can send
+  messages and embed links in the configured channels.</p>
+
+  <h4>I lost my claim code</h4>
+  <p>Contact ClutchGG support for a fresh one. After too many wrong attempts the claim command locks
+  you out for a while as a security measure — just wait it out and try again with the correct code.</p>
+
+  <h4>This server runs more than one tournament</h4>
+  <p>Every command acts on the <em>active</em> tournament. See which are linked and switch between them
+  with <code>/use-tournament</code>.</p>
+
+  <footer class="pf">
+    ClutchGG Tournament Bot — Organizer Guide · Generated for clutchgg.in ·
+    Type <strong>/help</strong> in Discord for the always-current command list.
+  </footer>
+</section>
+
+</body>
+</html>
