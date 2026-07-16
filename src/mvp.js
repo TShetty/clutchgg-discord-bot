@@ -293,4 +293,4 @@ function matchMvp(t, match) {
   };
 }
 
-module.exports = { calculateTournamentMvpRankings, matchMvp, bracketRoundLabel, computePlacement };
+module.exports = { calculateTournamentMvpRankings, matchMvp, bracketRoundLabel, computePlacement, statMatchesPlayer };

@@ -123,16 +123,20 @@ The website's pulled data always wins over a manually-typed score.
 
 ## Command catalog (target state)
 
-Setup: /set-tournament-details, /import-teams, /set-bracket, /lock-tournament, /link-tournament (superadmin)
+Setup: /set-tournament-details, /import-teams, /set-bracket, /lock-tournament, /create-team-roles, /link-tournament (superadmin)
 Teams: /list-teams, /team-roster, /update-roster
-Info:  /get-tournament-details, /get-bracket, /upcoming-matches, /live-matches, /today-matches
+Info:  /get-tournament-details, /get-bracket, /upcoming-matches, /live-matches, /today-matches, /player, /compare, /team-stats, /head-to-head, /clips, /match-card
 Match: /update-match-details, /finish-match
 Stats: /pull-stats (acs/kdr/kills), /post-stats, /tournament-standing, /post-standing
 Misc:  /help, /report-issue (notifies superadmin via Discord/email about wrong stats)
 
-Notifications (automatic):
+Notifications (automatic — each kind toggleable per tournament via
+`/notifications`, individually or all at once):
 - 15 minutes before a scheduled match → post to schedule channel, tag team
   roles if available.
+- Match start time passes → live announcement to schedule channel with the
+  stream link + live scoreboard link (10-minute grace window; never fires for
+  long-past matches or on restart).
 - Match finished on website → post result card to results channel: website
   match link, score, MVP name + stats, and a UNIQUE stat-based flavor line
   (varied templates keyed off the actual performance — never the same message

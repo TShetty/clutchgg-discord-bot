@@ -16,6 +16,12 @@ const SECTIONS = [
       '`/standings` — round robin / group stage points table',
       '`/top-players by:<acs|kd|kills>` — tournament stat leaders',
       '`/mvp` — the tournament MVP race (same scoring as the website)',
+      '`/player name:<player>` — a player\'s card: team, role, stats, profile link',
+      '`/compare player1:<a> player2:<b>` — two players\' stats side by side',
+      '`/team-stats team:<name>` — a team\'s series/map record, round diff, placement',
+      '`/head-to-head team1:<a> team2:<b>` — past meetings between two teams',
+      '`/clips` — a match\'s highlight clips',
+      '`/match-card match:<n>` — post the shareable match card image',
     ],
   },
   {
@@ -27,6 +33,7 @@ const SECTIONS = [
       '`/set-bracket` — generate the bracket: single/double elimination or round robin',
       '`/assign-slot` — place teams into bracket slots (no options = list open slots)',
       '`/lock-tournament` — freeze all bot changes once setup is complete',
+      '`/create-team-roles` — create a mentionable role per team so reminders can tag them',
     ],
   },
   {
@@ -35,7 +42,7 @@ const SECTIONS = [
       '`/update-match` — set date, time, bo1/bo3/bo5, stream link, clips',
       '`/finish-match` — record a result; the score is validated against clutchgg.in data',
       '`/post` — publish upcoming matches / standings / top players / a result card to your tournament channel',
-      '`/notifications` — toggle the automatic posts on/off',
+      '`/notifications` — turn each automatic post on/off (reminders, live, results, daily) — or everything at once',
       '`/report-issue` — flag wrong stats on the website to ClutchGG admins',
       '`/organizers` — list/add/remove who can run organizer commands',
       '`/use-tournament` — switch the active tournament when this server hosts several',
@@ -51,6 +58,7 @@ const SECTIONS = [
     name: '🤖 Automatic (no command needed)',
     lines: [
       '⏰ Reminder 15 minutes before each scheduled match (tags team roles if they exist)',
+      '🔴 Live announcement with the stream link the moment a match starts',
       '🏆 Result card the moment a match finishes on clutchgg.in — score, MVP + stats, match link',
       '🌙 End-of-day summary with standings once all of a day\'s matches are done',
     ],

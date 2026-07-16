@@ -3,6 +3,8 @@
 //     finishes on clutchgg.in
 //   • reminders 15 minutes before a scheduled match (tags team roles if the
 //     server has roles named after the teams)
+//   • live announcements the moment a scheduled match's start time passes
+//     (stream link + live scoreboard link)
 //   • end-of-day standings once all of a day's matches are done
 //   • onboarding: DMs superadmins when an approved tournament request with
 //     Discord IDs has no /link-tournament yet; posts the setup guide when a
@@ -157,6 +159,20 @@ async function reminderCard(guild, t, item) {
     .setFooter({ text: t.name });
 }
 
+function liveCard(t, item) {
+  const m = item.match;
+  return new EmbedBuilder()
+    .setTitle(`🔴 LIVE — ${m.team1Name} vs ${m.team2Name}`)
+    .setDescription(
+      `${item.stage}${m.format ? ` · ${m.format.toUpperCase()}` : ''}\n` +
+      `${m.streamUrl ? `📺 [Watch the stream](${m.streamUrl})\n` : ''}[Live scoreboard →](${matchUrl(m.id)})`
+    )
+    .setURL(matchUrl(m.id))
+    .setColor(0xef4444)
+    .setFooter({ text: t.name })
+    .setTimestamp(new Date());
+}
+
 function eodCard(t, todaysItems) {
   const lines = todaysItems.map(({ match: m }) => {
     const { s1, s2 } = deriveScore(m);
@@ -277,6 +293,24 @@ async function tick(client) {
         await channel.send({ embeds: [embed] });
         await markSent(t.id, 'reminder', item.match.id);
         console.log(`[NOTIFY] reminder sent: ${item.match.team1Name} vs ${item.match.team2Name}`);
+      }
+    }
+
+    // Live announcements — the moment a scheduled match's start time passes.
+    // Only fires within 10 minutes of the start so restarts / long-past
+    // unfinished matches never trigger stale "LIVE" posts.
+    if (scheduleCh && prefs.live !== false) {
+      const now = Date.now();
+      for (const item of items.filter((i) => i.status !== 'completed' && i.match.date && i.match.time)) {
+        const start = new Date(`${item.match.date}T${item.match.time}`).getTime();
+        if (Number.isNaN(start)) continue;
+        const minsPast = (now - start) / 60000;
+        if (minsPast < 0 || minsPast > 10) continue;
+        if (await alreadySent(t.id, 'live', item.match.id)) continue;
+        if (await sendTo(client, scheduleCh, { embeds: [liveCard(t, item)] })) {
+          await markSent(t.id, 'live', item.match.id);
+          console.log(`[NOTIFY] live announcement: ${item.match.team1Name} vs ${item.match.team2Name}`);
+        }
       }
     }
 
