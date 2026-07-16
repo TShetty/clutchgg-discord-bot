@@ -100,12 +100,15 @@ function friendlyError(error) {
 }
 
 client.on('interactionCreate', async (interaction) => {
-  // Component interactions (buttons, select menus, modals) — currently all
-  // belong to the /setup wizard, namespaced "wiz:".
+  // Component interactions (buttons, select menus, modals), routed by
+  // customId namespace: "wiz:" → /setup wizard, "reg:" → team registration.
   if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
-    if (!interaction.customId?.startsWith('wiz:')) return;
+    const handler = interaction.customId?.startsWith('wiz:') ? require('./src/wizard')
+      : interaction.customId?.startsWith('reg:') ? require('./src/registration')
+      : null;
+    if (!handler) return;
     try {
-      await require('./src/wizard').handle(interaction);
+      await handler.handle(interaction);
     } catch (error) {
       console.error(`[WIZARD] Error handling ${interaction.customId}:`, error);
       try {
@@ -131,11 +134,15 @@ client.on('interactionCreate', async (interaction) => {
 
   // Defer immediately — 15-minute edit window instead of the 3s initial-reply
   // window, so slow network round-trips never cause "Unknown interaction".
-  try {
-    await interaction.deferReply(command.ephemeral ? { flags: MessageFlags.Ephemeral } : undefined);
-  } catch (error) {
-    console.error(`[BOT] Failed to defer /${interaction.commandName}:`, error.message);
-    return;
+  // Commands that open a modal (noDefer) must respond with it FIRST, so they
+  // skip the defer and manage their own replies.
+  if (!command.noDefer) {
+    try {
+      await interaction.deferReply(command.ephemeral ? { flags: MessageFlags.Ephemeral } : undefined);
+    } catch (error) {
+      console.error(`[BOT] Failed to defer /${interaction.commandName}:`, error.message);
+      return;
+    }
   }
 
   // Wrap editReply so EVERY command's replies are auto-clamped to Discord's
@@ -149,7 +156,8 @@ client.on('interactionCreate', async (interaction) => {
   } catch (error) {
     console.error(`[BOT] Error in /${interaction.commandName}:`, error);
     try {
-      await rawEditReply(friendlyError(error));
+      if (interaction.deferred || interaction.replied) await rawEditReply(friendlyError(error));
+      else await interaction.reply({ content: friendlyError(error), flags: MessageFlags.Ephemeral });
     } catch (e) {
       console.error('[BOT] Failed to send error reply:', e.message);
     }

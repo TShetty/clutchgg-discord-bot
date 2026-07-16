@@ -3,42 +3,8 @@
 // organizer's claimed score must match them exactly; the website wins.
 // Run without options to list matches awaiting a result.
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { requireOrganizer, saveTournament, numberedMatchList, replaceMatch, deriveScore } = require('../write-utils');
+const { requireOrganizer, saveTournament, numberedMatchList, replaceMatch, propagateWinner, deriveScore } = require('../write-utils');
 const { isMatchDecidedByMaps, matchUrl } = require('../tournament-utils');
-
-// Winner propagation, mirroring the website's bracket routing: put the winner
-// (and loser, for double-elim) into the slot the match's routing points at.
-function propagate(t, finished) {
-  const winnerIsT1 = finished.winner === finished.team1Id;
-  const winner = { id: finished.winner, name: winnerIsT1 ? finished.team1Name : finished.team2Name };
-  const loser = { id: winnerIsT1 ? finished.team2Id : finished.team1Id, name: winnerIsT1 ? finished.team2Name : finished.team1Name };
-
-  const apply = (b) => {
-    if (!b) return;
-    for (const m of b.rounds.flat()) {
-      if (finished.winnerGoesTo?.matchId === m.id) {
-        if (finished.winnerGoesTo.slot === 1) { m.team1Id = winner.id; m.team1Name = winner.name; }
-        else { m.team2Id = winner.id; m.team2Name = winner.name; }
-        m.autoPopulated = true;
-      }
-      if (finished.loserGoesTo?.matchId === m.id) {
-        if (finished.loserGoesTo.slot === 1) { m.team1Id = loser.id; m.team1Name = loser.name; }
-        else { m.team2Id = loser.id; m.team2Name = loser.name; }
-        m.autoPopulated = true;
-      }
-      // Single-elim id convention: winner_<round>_<index> placeholders.
-      if (!finished.winnerGoesTo && finished.id.startsWith('match_')) {
-        const [, r, i] = finished.id.split('_').map(Number);
-        if (m.team1Id === `winner_${r}_${i}`) { m.team1Id = winner.id; m.team1Name = winner.name; }
-        if (m.team2Id === `winner_${r}_${i}`) { m.team2Id = winner.id; m.team2Name = winner.name; }
-      }
-    }
-  };
-  apply(t.generatedBracket);
-  apply(t.stage1Bracket);
-  apply(t.stage2Bracket);
-  apply(t.knockoutBracket);
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -129,7 +95,7 @@ module.exports = {
       matchId = m.id;
 
       let updated = replaceMatch(t, m);
-      propagate(updated, m);
+      propagateWinner(updated, m);
 
       const winnerName = claimed.s1 > claimed.s2 ? m.team1Name : m.team2Name;
       summary =

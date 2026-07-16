@@ -31,8 +31,10 @@ const SECTIONS = [
       '`/set-details` — edit description, dates, prize pool, max teams, status',
       '`/import-teams` — import teams from .xlsx (run without a file to get the template)',
       '`/update-roster` — add/rename/remove teams & players, set Riot IDs and roles',
+      '`/set-captain team:<name> user:@member` — link a captain to a team (+ team role)',
       '`/set-bracket` — generate the bracket: single/double elimination or round robin',
       '`/assign-slot` — place teams into bracket slots (no options = list open slots)',
+      '`/auto-schedule` — schedule EVERY match at once: first match time + gap + matches per day',
       '`/lock-tournament` — freeze all bot changes once setup is complete',
       '`/create-team-roles` — create a mentionable role per team so reminders can tag them',
     ],
@@ -43,7 +45,7 @@ const SECTIONS = [
       '`/update-match` — set date, time, bo1/bo3/bo5, stream link, clips',
       '`/finish-match` — record a result; the score is validated against clutchgg.in data',
       '`/post` — publish upcoming matches / standings / top players / a result card to your tournament channel',
-      '`/notifications` — turn each automatic post on/off (reminders, live, results, daily) — or everything at once',
+      '`/notifications` — toggle each automatic post: reminders, live, results, morning/daily posts, nudges, auto-finish',
       '`/report-issue` — flag wrong stats on the website to ClutchGG admins',
       '`/organizers` — list/add/remove who can run organizer commands',
       '`/use-tournament` — switch the active tournament when this server hosts several',
@@ -58,10 +60,19 @@ const SECTIONS = [
   {
     name: '🤖 Automatic (no command needed)',
     lines: [
+      '☀️ Morning post with today\'s schedule (times, streams, links)',
       '⏰ Reminder 15 minutes before each scheduled match (tags team roles if they exist)',
       '🔴 Live announcement with the stream link the moment a match starts',
       '🏆 Result card the moment a match finishes on clutchgg.in — score, MVP + stats, match link',
+      '🤖 Auto-finish (opt-in): winners recorded & bracket advanced from website data — no /finish-match needed',
+      '👋 DM nudge to organizers when a match is 3h+ past start with no result',
       '🌙 End-of-day summary with standings once all of a day\'s matches are done',
+    ],
+  },
+  {
+    name: '🙋 For team captains',
+    lines: [
+      '`/register-team` — register YOUR team via a popup form; you become captain, an organizer approves with one click',
     ],
   },
   {

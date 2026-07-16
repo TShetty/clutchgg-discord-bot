@@ -14,7 +14,8 @@
 const { EmbedBuilder } = require('discord.js');
 const crypto = require('node:crypto');
 const { supabase, getTournaments, upsertDiscordLink } = require('./supabase');
-const { matchUrl, tournamentUrl, deriveScore, realMatches, computeRRStandings, textTable, matchStartMs } = require('./tournament-utils');
+const { matchUrl, tournamentUrl, deriveScore, realMatches, computeRRStandings, textTable, matchStartMs, isMatchDecidedByMaps, MATCH_TZ } = require('./tournament-utils');
+const { saveTournament, propagateWinner } = require('./write-utils');
 const { matchMvp } = require('./mvp');
 
 const POLL_MS = 60_000;
@@ -205,6 +206,19 @@ function eodCard(t, todaysItems) {
   return embed;
 }
 
+function morningCard(t, todaysItems) {
+  const lines = todaysItems.map(({ match: m, stage }) =>
+    `🕐 **${m.time || 'TBD'}** — ${m.team1Name} vs ${m.team2Name} · ${stage}${m.streamUrl ? ` · [📺 stream](${m.streamUrl})` : ''}`
+  );
+  return new EmbedBuilder()
+    .setTitle(`☀️ Today at ${t.name} — ${todaysItems.length} match${todaysItems.length === 1 ? '' : 'es'}`)
+    .setDescription(lines.join('\n').slice(0, 3900))
+    .setURL(tournamentUrl(t.id))
+    .setColor(0xf59e0b)
+    .setFooter({ text: `All times ${MATCH_TZ}` })
+    .setTimestamp(new Date());
+}
+
 function welcomeCard(t, link) {
   const organizers = (link.discord_user_ids || []).map((id) => `<@${id}>`).join(' ');
   return new EmbedBuilder()
@@ -214,10 +228,10 @@ function welcomeCard(t, link) {
       '🧭 **Easiest path: run `/setup`** — a guided wizard that walks you through details, teams, bracket and seeding with forms and dropdowns.\n\n' +
       '**Or step by step:**\n' +
       '1️⃣ `/set-details` — description, dates, prize pool\n' +
-      '2️⃣ `/import-teams` — get the .xlsx template, then upload it filled\n' +
+      '2️⃣ `/import-teams` (.xlsx) — or let captains `/register-team` themselves, you just click ✅\n' +
       '3️⃣ `/set-bracket` — single/double elim or round robin (per stage for two-stage)\n' +
       '4️⃣ `/assign-slot` — place teams into the bracket\n' +
-      '5️⃣ `/update-match` — dates, times, bo1/bo3/bo5, stream links\n' +
+      '5️⃣ `/auto-schedule` — every match timed in one command (fine-tune with `/update-match`)\n' +
       '6️⃣ `/post what:upcoming` — announce the schedule here\n' +
       '7️⃣ `/lock-tournament` — freeze everything once ready\n\n' +
       'ℹ️ `/help` explains every command. Results are auto-posted here as matches finish — with MVP callouts. Reminders go out 15 minutes before each match.'
@@ -227,10 +241,15 @@ function welcomeCard(t, link) {
 
 // ── The poller ───────────────────────────────────────────────────────────────
 
+// "Today" and "current hour" in the tournament timezone (NOT the server's —
+// Railway runs UTC, matches are scheduled in MATCH_TZ wall-clock time).
 function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: MATCH_TZ }).format(new Date()); // YYYY-MM-DD
 }
+function currentHour() {
+  return +new Intl.DateTimeFormat('en-US', { timeZone: MATCH_TZ, hour: 'numeric', hourCycle: 'h23' }).format(new Date());
+}
+const MORNING_HOUR = +(process.env.MORNING_POST_HOUR || 8); // earliest hour for the morning schedule post
 
 async function sendTo(client, channelId, payload) {
   const channel = await client.channels.fetch(channelId).catch(() => null);
@@ -268,7 +287,33 @@ async function tick(client) {
       }
     }
 
-    const items = realMatches(t);
+    let items = realMatches(t);
+
+    // Auto-finish (opt-in via /notifications kind:auto-finish): when the
+    // website's map data has decided a match but no winner is recorded yet,
+    // record it and advance the bracket — exactly what /finish-match would do,
+    // with the same source of truth (the website data IS the validation).
+    if (link.prefs?.autofinish === true) {
+      const undecided = items.filter((i) => !i.match.winner && isMatchDecidedByMaps(i.match));
+      for (const item of undecided) {
+        let finishedName = null;
+        await saveTournament(t.id, (fresh) => {
+          for (const b of [fresh.generatedBracket, fresh.stage1Bracket, fresh.stage2Bracket, fresh.knockoutBracket]) {
+            if (!b) continue;
+            for (const m of b.rounds.flat()) {
+              if (m.id !== item.match.id || m.winner || !isMatchDecidedByMaps(m)) continue;
+              const { s1, s2 } = deriveScore(m);
+              m.winner = s1 > s2 ? m.team1Id : m.team2Id;
+              finishedName = s1 > s2 ? m.team1Name : m.team2Name;
+              propagateWinner(fresh, m);
+            }
+          }
+          return fresh;
+        });
+        if (finishedName) console.log(`[NOTIFY] auto-finished ${item.match.team1Name} vs ${item.match.team2Name} → ${finishedName}`);
+      }
+      if (undecided.length) items = realMatches(t); // statuses may look the same but keep list coherent
+    }
 
     // First time we see this tournament: silently mark everything already
     // completed as "sent" so a fresh deploy doesn't flood the channel with
@@ -326,6 +371,62 @@ async function tick(client) {
         if (await sendTo(client, scheduleCh, { embeds: [liveCard(t, item)] })) {
           await markSent(t.id, 'live', item.match.id);
           console.log(`[NOTIFY] live announcement: ${item.match.team1Name} vs ${item.match.team2Name}`);
+        }
+      }
+    }
+
+    // Morning schedule post — once per day, from MORNING_HOUR (tournament TZ),
+    // whenever today has scheduled matches.
+    if (scheduleCh && prefs.morning !== false && currentHour() >= MORNING_HOUR) {
+      const today = todayStr();
+      const todays = items
+        .filter((i) => i.match.date === today)
+        .sort((a, b) => (a.match.time || '').localeCompare(b.match.time || ''));
+      if (todays.length > 0 && todays.some((i) => i.status !== 'completed')) {
+        if (!(await alreadySent(t.id, 'morning', today))) {
+          if (await sendTo(client, scheduleCh, { embeds: [morningCard(t, todays)] })) {
+            await markSent(t.id, 'morning', today);
+            console.log(`[NOTIFY] morning schedule posted for ${t.name} (${today})`);
+          }
+        }
+      }
+    }
+
+    // Unfinished-match nudge: a match started 3+ hours ago, isn't decided on
+    // the website and has no recorded winner → DM the organizers once, with
+    // the exact command to run. Capped at 48h so first-deploy backlogs of
+    // ancient matches don't spam anyone.
+    if (prefs.nudges !== false && (link.discord_user_ids ?? []).length) {
+      const now = Date.now();
+      for (const item of items.filter((i) => i.status !== 'completed' && i.match.date && i.match.time && !i.match.winner)) {
+        const start = matchStartMs(item.match.date, item.match.time);
+        if (Number.isNaN(start)) continue;
+        const hoursPast = (now - start) / 36e5;
+        if (hoursPast < 3 || hoursPast > 48) continue;
+        if (await alreadySent(t.id, 'nudge', item.match.id)) continue;
+        const m = item.match;
+        const embed = new EmbedBuilder()
+          .setTitle('👋 Match needs a result')
+          .setDescription(
+            `**${m.team1Name} vs ${m.team2Name}** (${item.stage}, ${t.name}) started ${Math.floor(hoursPast)}h ago and has no recorded result.\n\n` +
+            `• Enter the map scores on [the match page](${matchUrl(m.id)}), then run \`/finish-match\`\n` +
+            '• Or run `/finish-match` with no options to see all pending matches\n' +
+            '-# Auto-record decided matches with `/notifications kind:auto-finish state:on`'
+          )
+          .setColor(0xf59e0b);
+        let sent = false;
+        for (const uid of link.discord_user_ids) {
+          try {
+            const user = await client.users.fetch(uid);
+            await user.send({ embeds: [embed] });
+            sent = true;
+          } catch (e) {
+            console.error(`[NOTIFY] could not DM organizer ${uid}:`, e.message);
+          }
+        }
+        if (sent) {
+          await markSent(t.id, 'nudge', item.match.id);
+          console.log(`[NOTIFY] nudged organizers: ${m.team1Name} vs ${m.team2Name}`);
         }
       }
     }

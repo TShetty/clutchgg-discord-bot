@@ -103,6 +103,41 @@ function numberedMatchList(tournament, filter) {
     .filter((item) => (filter ? filter(item) : true));
 }
 
+// Winner propagation, mirroring the website's bracket routing: put the winner
+// (and loser, for double-elim) into the slot the match's routing points at.
+// Used by /finish-match and by the poller's auto-finish.
+function propagateWinner(t, finished) {
+  const winnerIsT1 = finished.winner === finished.team1Id;
+  const winner = { id: finished.winner, name: winnerIsT1 ? finished.team1Name : finished.team2Name };
+  const loser = { id: winnerIsT1 ? finished.team2Id : finished.team1Id, name: winnerIsT1 ? finished.team2Name : finished.team1Name };
+
+  const apply = (b) => {
+    if (!b) return;
+    for (const m of b.rounds.flat()) {
+      if (finished.winnerGoesTo?.matchId === m.id) {
+        if (finished.winnerGoesTo.slot === 1) { m.team1Id = winner.id; m.team1Name = winner.name; }
+        else { m.team2Id = winner.id; m.team2Name = winner.name; }
+        m.autoPopulated = true;
+      }
+      if (finished.loserGoesTo?.matchId === m.id) {
+        if (finished.loserGoesTo.slot === 1) { m.team1Id = loser.id; m.team1Name = loser.name; }
+        else { m.team2Id = loser.id; m.team2Name = loser.name; }
+        m.autoPopulated = true;
+      }
+      // Single-elim id convention: winner_<round>_<index> placeholders.
+      if (!finished.winnerGoesTo && finished.id.startsWith('match_')) {
+        const [, r, i] = finished.id.split('_').map(Number);
+        if (m.team1Id === `winner_${r}_${i}`) { m.team1Id = winner.id; m.team1Name = winner.name; }
+        if (m.team2Id === `winner_${r}_${i}`) { m.team2Id = winner.id; m.team2Name = winner.name; }
+      }
+    }
+  };
+  apply(t.generatedBracket);
+  apply(t.stage1Bracket);
+  apply(t.stage2Bracket);
+  apply(t.knockoutBracket);
+}
+
 // Replace a match by id across every bracket (applyMatchToTournament port).
 function replaceMatch(tournament, updatedMatch) {
   const replaceIn = (b) =>
@@ -124,6 +159,7 @@ module.exports = {
   findMatch,
   numberedMatchList,
   replaceMatch,
+  propagateWinner,
   deriveScore,
   effectiveStatus,
 };

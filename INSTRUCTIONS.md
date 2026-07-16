@@ -123,15 +123,25 @@ The website's pulled data always wins over a manually-typed score.
 
 ## Command catalog (target state)
 
-Setup: /setup (guided wizard: details modal → teams → bracket dropdown → click-to-seed slots), /set-tournament-details, /import-teams, /set-bracket, /lock-tournament, /create-team-roles, /link-tournament (superadmin)
-Teams: /list-teams, /team-roster, /update-roster
+Setup: /setup (guided wizard: details modal → teams → bracket dropdown → click-to-seed slots), /set-tournament-details, /import-teams, /set-bracket, /auto-schedule (bulk: first time + gap + per-day), /lock-tournament, /create-team-roles, /link-tournament (superadmin)
+Teams: /list-teams, /team-roster, /update-roster, /register-team (captain self-registration via modal, organizer approves with buttons), /set-captain (link captain to Excel-imported team / captain who joined late)
 Info:  /get-tournament-details, /get-bracket, /upcoming-matches, /live-matches, /today-matches, /player, /compare, /team-stats, /head-to-head, /clips, /match-card
 Match: /update-match-details, /finish-match
 Stats: /pull-stats (acs/kdr/kills), /post-stats, /tournament-standing, /post-standing
 Misc:  /help, /report-issue (notifies superadmin via Discord/email about wrong stats)
 
+Captains: whoever runs /register-team is that team's captain
+(`captainDiscordId` on the team object — bot-side metadata the website
+ignores). On approval the bot auto-creates the team role and assigns it to the
+captain. Captains not yet in Discord (Excel imports) are linked later with
+/set-captain — auto-detection on join is impossible without the privileged
+GuildMembers intent.
+
 Notifications (automatic — each kind toggleable per tournament via
-`/notifications`, individually or all at once):
+`/notifications`, individually or all at once; match times interpreted in
+BOT_TIMEZONE, default Asia/Kolkata):
+- Morning of a match day (from MORNING_POST_HOUR, default 8) → today's
+  schedule to the schedule channel.
 - 15 minutes before a scheduled match → post to schedule channel, tag team
   roles if available.
 - Match start time passes → live announcement to schedule channel with the
@@ -141,4 +151,9 @@ Notifications (automatic — each kind toggleable per tournament via
   match link, score, MVP name + stats, and a UNIQUE stat-based flavor line
   (varied templates keyed off the actual performance — never the same message
   twice in a row).
+- OPT-IN auto-finish (`prefs.autofinish === true`): when website map data
+  decides a match, record the winner + advance the bracket automatically
+  (identical to /finish-match; the website data IS the validation).
+- Match 3h+ past start with no result (≤48h) → DM the organizers once with
+  the exact command to run.
 - All of a day's matches complete → post the day's standings/group table.
