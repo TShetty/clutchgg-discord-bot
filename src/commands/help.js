@@ -27,6 +27,7 @@ const SECTIONS = [
   {
     name: '⚙️ Tournament setup (organizers)',
     lines: [
+      '`/setup` — **guided setup wizard**: details form, bracket picker and click-to-seed slots — start here',
       '`/set-details` — edit description, dates, prize pool, max teams, status',
       '`/import-teams` — import teams from .xlsx (run without a file to get the template)',
       '`/update-roster` — add/rename/remove teams & players, set Riot IDs and roles',

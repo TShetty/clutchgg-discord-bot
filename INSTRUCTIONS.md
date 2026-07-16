@@ -123,7 +123,7 @@ The website's pulled data always wins over a manually-typed score.
 
 ## Command catalog (target state)
 
-Setup: /set-tournament-details, /import-teams, /set-bracket, /lock-tournament, /create-team-roles, /link-tournament (superadmin)
+Setup: /setup (guided wizard: details modal → teams → bracket dropdown → click-to-seed slots), /set-tournament-details, /import-teams, /set-bracket, /lock-tournament, /create-team-roles, /link-tournament (superadmin)
 Teams: /list-teams, /team-roster, /update-roster
 Info:  /get-tournament-details, /get-bracket, /upcoming-matches, /live-matches, /today-matches, /player, /compare, /team-stats, /head-to-head, /clips, /match-card
 Match: /update-match-details, /finish-match

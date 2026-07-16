@@ -211,7 +211,8 @@ function welcomeCard(t, link) {
     .setTitle(`🎉 ${t.name} is connected to ClutchGG!`)
     .setDescription(
       `${organizers} — your tournament is live at ${tournamentUrl(t.id)} and this server is now its control room.\n\n` +
-      '**Suggested setup order:**\n' +
+      '🧭 **Easiest path: run `/setup`** — a guided wizard that walks you through details, teams, bracket and seeding with forms and dropdowns.\n\n' +
+      '**Or step by step:**\n' +
       '1️⃣ `/set-details` — description, dates, prize pool\n' +
       '2️⃣ `/import-teams` — get the .xlsx template, then upload it filled\n' +
       '3️⃣ `/set-bracket` — single/double elim or round robin (per stage for two-stage)\n' +

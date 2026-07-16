@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { requireLinkedTournament } = require('../context');
-const { tournamentUrl, deriveScore, effectiveStatus, computeRRStandings, textTable } = require('../tournament-utils');
+const { tournamentUrl, deriveScore, effectiveStatus, computeRRStandings, textTable, isTeamSlotName } = require('../tournament-utils');
 
 // Round naming, mirroring the website (api/match-meta.ts roundLabel).
 function roundName(idx, total, prefix) {
@@ -44,9 +44,19 @@ function renderBracket(embed, label, bracket) {
   const finals = rounds.filter((r) => sectionOf(r) === 'grand-final');
 
   winners.forEach((round, i) => {
+    // Round 1 open slots get an explicit label (〈M2·S1 open〉) so organizers
+    // can see exactly which match/slot to fill with /assign-slot or /setup.
+    const lines = round.map((m, mi) => {
+      if (i === 0 && (isTeamSlotName(m.team1Name) || isTeamSlotName(m.team2Name))) {
+        const n1 = isTeamSlotName(m.team1Name) ? `〈M${mi + 1}·S1 open〉` : `**${m.team1Name}**`;
+        const n2 = isTeamSlotName(m.team2Name) ? `〈M${mi + 1}·S2 open〉` : `**${m.team2Name}**`;
+        return `🧩 ${n1} vs ${n2}`;
+      }
+      return matchLine(m);
+    });
     embed.addFields({
       name: `${label} · ${roundName(i, winners.length, isDouble ? 'WB' : '')}`,
-      value: round.map(matchLine).join('\n').slice(0, 1024) || '—',
+      value: lines.join('\n').slice(0, 1024) || '—',
     });
   });
   losers.forEach((round, i) => {

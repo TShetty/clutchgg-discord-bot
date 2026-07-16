@@ -100,6 +100,25 @@ function friendlyError(error) {
 }
 
 client.on('interactionCreate', async (interaction) => {
+  // Component interactions (buttons, select menus, modals) — currently all
+  // belong to the /setup wizard, namespaced "wiz:".
+  if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
+    if (!interaction.customId?.startsWith('wiz:')) return;
+    try {
+      await require('./src/wizard').handle(interaction);
+    } catch (error) {
+      console.error(`[WIZARD] Error handling ${interaction.customId}:`, error);
+      try {
+        const payload = { content: friendlyError(error), embeds: [], components: [] };
+        if (interaction.deferred || interaction.replied) await interaction.editReply(payload);
+        else await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+      } catch (e) {
+        console.error('[WIZARD] Failed to send error reply:', e.message);
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
