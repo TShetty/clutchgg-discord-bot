@@ -14,7 +14,7 @@
 const { EmbedBuilder } = require('discord.js');
 const crypto = require('node:crypto');
 const { supabase, getTournaments, upsertDiscordLink } = require('./supabase');
-const { matchUrl, tournamentUrl, deriveScore, realMatches, computeRRStandings, textTable } = require('./tournament-utils');
+const { matchUrl, tournamentUrl, deriveScore, realMatches, computeRRStandings, textTable, matchStartMs } = require('./tournament-utils');
 const { matchMvp } = require('./mvp');
 
 const POLL_MS = 60_000;
@@ -136,12 +136,17 @@ function resultCard(t, item) {
 
 async function reminderCard(guild, t, item) {
   const m = item.match;
-  // Tag roles named after the teams when the server has them.
+  // Tag roles named after the teams when the server has them. Only tag when
+  // there's exactly one matching role (a duplicate/shadow role named after a
+  // team is ambiguous — fall back to plain text rather than ping the wrong one)
+  // and skip @everyone/@here-adjacent managed roles.
   const tagFor = async (teamName) => {
     try {
       const roles = await guild.roles.fetch();
-      const role = roles.find((r) => r.name.toLowerCase() === teamName.toLowerCase());
-      return role ? `<@&${role.id}>` : `**${teamName}**`;
+      const matches = roles.filter(
+        (r) => r.name.toLowerCase() === teamName.toLowerCase() && r.id !== guild.id && !r.managed
+      );
+      return matches.size === 1 ? `<@&${matches.first().id}>` : `**${teamName}**`;
     } catch {
       return `**${teamName}**`;
     }
@@ -229,8 +234,16 @@ function todayStr() {
 async function sendTo(client, channelId, payload) {
   const channel = await client.channels.fetch(channelId).catch(() => null);
   if (!channel) return false;
-  await channel.send(payload);
-  return true;
+  try {
+    await channel.send(payload);
+    return true;
+  } catch (e) {
+    // Missing send/embed permission, deleted channel, etc. Log and move on so
+    // one broken channel never aborts the tick (and, because we return false,
+    // the caller won't markSent — it'll retry next tick once fixed).
+    console.error(`[NOTIFY] send to ${channelId} failed:`, e.message);
+    return false;
+  }
 }
 
 async function tick(client) {
@@ -238,6 +251,7 @@ async function tick(client) {
   const byId = new Map(tournaments.map((t) => [t.id, t]));
 
   for (const link of links) {
+   try {
     const t = byId.get(link.tournament_id);
     if (!t || !link.channels) continue;
     const prefs = link.prefs ?? {};
@@ -282,7 +296,7 @@ async function tick(client) {
     if (scheduleCh && prefs.reminders !== false) {
       const now = Date.now();
       for (const item of items.filter((i) => i.status === 'upcoming' && i.match.date && i.match.time)) {
-        const start = new Date(`${item.match.date}T${item.match.time}`).getTime();
+        const start = matchStartMs(item.match.date, item.match.time);
         if (Number.isNaN(start)) continue;
         const minsAway = (start - now) / 60000;
         if (minsAway <= 0 || minsAway > 15) continue;
@@ -290,9 +304,10 @@ async function tick(client) {
         const channel = await client.channels.fetch(scheduleCh).catch(() => null);
         if (!channel) continue;
         const embed = await reminderCard(channel.guild, t, item);
-        await channel.send({ embeds: [embed] });
-        await markSent(t.id, 'reminder', item.match.id);
-        console.log(`[NOTIFY] reminder sent: ${item.match.team1Name} vs ${item.match.team2Name}`);
+        if (await sendTo(client, scheduleCh, { embeds: [embed] })) {
+          await markSent(t.id, 'reminder', item.match.id);
+          console.log(`[NOTIFY] reminder sent: ${item.match.team1Name} vs ${item.match.team2Name}`);
+        }
       }
     }
 
@@ -302,7 +317,7 @@ async function tick(client) {
     if (scheduleCh && prefs.live !== false) {
       const now = Date.now();
       for (const item of items.filter((i) => i.status !== 'completed' && i.match.date && i.match.time)) {
-        const start = new Date(`${item.match.date}T${item.match.time}`).getTime();
+        const start = matchStartMs(item.match.date, item.match.time);
         if (Number.isNaN(start)) continue;
         const minsPast = (now - start) / 60000;
         if (minsPast < 0 || minsPast > 10) continue;
@@ -327,30 +342,47 @@ async function tick(client) {
         }
       }
     }
+   } catch (e) {
+     // One tournament's failure (bad data, DB hiccup, permission error) must
+     // not stop notifications for every other tournament in this tick.
+     console.error(`[NOTIFY] processing link ${link.tournament_id} failed:`, e.message);
+   }
   }
 
-  // Onboarding: approved requests with Discord IDs but no link yet → nudge
-  // superadmins to run /link-tournament in the tournament's server.
-  const linkedIds = new Set(links.map((l) => l.tournament_id));
+  // Onboarding: approved requests with Discord IDs but no linked server yet →
+  // nudge superadmins to forward a claim code so the organizer can self-link.
+  const linkByTournament = new Map(links.map((l) => [l.tournament_id, l]));
+  // A tournament counts as "already claimed" only once a guild is attached; a
+  // link that only holds a pending claim_code still needs onboarding.
+  const claimedIds = new Set(links.filter((l) => l.discord_guild_id).map((l) => l.tournament_id));
   const superadmins = (process.env.SUPERADMIN_DISCORD_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
   if (superadmins.length) {
     for (const req of await getPendingOnboardRequests()) {
-      if (linkedIds.has(req.created_tournament_id)) continue;
+      if (claimedIds.has(req.created_tournament_id)) continue;
       if (await alreadySent(req.created_tournament_id, 'onboard-dm', req.id)) continue;
       const t = byId.get(req.created_tournament_id);
 
-      // Issue a claim code up front so the superadmin only has to forward it —
-      // the organizer self-links with /claim-tournament in their own server.
-      const code = crypto.randomBytes(6).toString('base64url');
-      await upsertDiscordLink({
-        tournament_id: req.created_tournament_id,
-        discord_user_ids: [],
-        discord_guild_id: null,
-        channels: {},
-        claim_code: code,
-        is_active: true,
-        locked: false,
-      });
+      // Mark BEFORE sending so an overlapping/failed cycle can't re-mint a
+      // fresh code (which would invalidate one already forwarded). If the DM
+      // fails we surface it in logs but don't loop forever generating codes.
+      await markSent(req.created_tournament_id, 'onboard-dm', req.id);
+
+      // Reuse an existing pending code if this tournament already has an
+      // unclaimed link; only mint a new one when there's none. This keeps the
+      // code the superadmin forwards stable across ticks.
+      const existing = linkByTournament.get(req.created_tournament_id);
+      const code = existing?.claim_code ?? crypto.randomBytes(16).toString('base64url');
+      if (!existing?.claim_code) {
+        await upsertDiscordLink({
+          tournament_id: req.created_tournament_id,
+          discord_user_ids: [],
+          discord_guild_id: null,
+          channels: {},
+          claim_code: code,
+          is_active: true,
+          locked: false,
+        });
+      }
 
       const embed = new EmbedBuilder()
         .setTitle('🆕 Tournament ready to link to Discord')
@@ -363,25 +395,43 @@ async function tick(client) {
           (t ? `\n${tournamentUrl(t.id)}` : '')
         )
         .setColor(0x00b0f4);
-      let sent = false;
       for (const id of superadmins) {
         try {
           const user = await client.users.fetch(id);
           await user.send({ embeds: [embed] });
-          sent = true;
         } catch (e) {
           console.error(`[NOTIFY] could not DM superadmin ${id}:`, e.message);
         }
       }
-      if (sent) await markSent(req.created_tournament_id, 'onboard-dm', req.id);
     }
   }
 }
 
 function start(client) {
-  const run = () => tick(client).catch((e) => console.error('[NOTIFY] tick failed:', e.message));
-  setTimeout(run, 10_000); // first pass shortly after startup
-  setInterval(run, POLL_MS);
+  // Self-scheduling loop with a re-entrancy guard: a slow tick (many
+  // tournaments / slow Discord API) can't overlap itself and double-post or
+  // race the onboarding code mint. The next tick is only armed AFTER the
+  // current one settles.
+  let running = false;
+  const run = async () => {
+    if (running) {
+      console.warn('[NOTIFY] previous tick still running — skipping this cycle');
+      return;
+    }
+    running = true;
+    try {
+      await tick(client);
+    } catch (e) {
+      console.error('[NOTIFY] tick failed:', e.message);
+    } finally {
+      running = false;
+    }
+  };
+  const loop = async () => {
+    await run();
+    setTimeout(loop, POLL_MS);
+  };
+  setTimeout(loop, 10_000); // first pass shortly after startup
   console.log(`[NOTIFY] poller started (every ${POLL_MS / 1000}s)`);
 }
 

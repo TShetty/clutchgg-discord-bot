@@ -1,8 +1,8 @@
 // Shared helpers for write commands: website-parity guards, match lookup,
 // organizer authorization, and safe read-modify-write of the tournament blob.
-const { getTournamentById, upsertTournament } = require('./supabase');
+const { getTournamentRowById, updateTournamentIfUnchanged } = require('./supabase');
 const { requireLinkedTournament } = require('./context');
-const { realMatches, deriveScore, effectiveStatus } = require('./tournament-utils');
+const { realMatches, deriveScore, effectiveStatus, matchStartMs } = require('./tournament-utils');
 
 // ── Ported guards (TournamentCreation.tsx) ───────────────────────────────────
 
@@ -35,13 +35,13 @@ function tournamentHasBegun(tournament) {
     if (!b) continue;
     for (const m of b.rounds.flat()) {
       if (m.date) {
-        const t = new Date(`${m.date}T${m.time || '00:00'}`).getTime();
+        const t = matchStartMs(m.date, m.time);
         if (!Number.isNaN(t) && t <= now) return true;
       }
     }
   }
   if (tournament.event?.startDate) {
-    const t = new Date(`${tournament.event.startDate}T00:00`).getTime();
+    const t = matchStartMs(tournament.event.startDate, '00:00');
     if (!Number.isNaN(t) && t <= now) return true;
   }
   return false;
@@ -65,14 +65,23 @@ async function requireOrganizer(interaction) {
   return ctx;
 }
 
-// Save with read-modify-write: re-fetch latest blob, apply `mutate` to it, and
-// persist — so we never clobber website edits made since the command started.
-async function saveTournament(tournamentId, mutate) {
-  const latest = await getTournamentById(tournamentId);
-  if (!latest) throw new Error('Tournament disappeared while saving');
-  const updated = mutate(latest) ?? latest;
-  await upsertTournament(updated);
-  return updated;
+// Save with optimistic-locked read-modify-write: re-fetch the latest blob,
+// apply `mutate`, and persist ONLY if nobody wrote in between (updated_at
+// unchanged). On a lost race we re-read and re-apply the mutation, so a website
+// edit or a concurrent command can never be silently clobbered (INSTRUCTIONS.md
+// reliability rule). `mutate` must be a pure function of the blob — it may run
+// more than once.
+async function saveTournament(tournamentId, mutate, { retries = 4 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const row = await getTournamentRowById(tournamentId);
+    if (!row) throw new Error('Tournament disappeared while saving');
+    const updated = mutate(row.data) ?? row.data;
+    const ok = await updateTournamentIfUnchanged(updated, row.updatedAt);
+    if (ok) return updated;
+    // Someone else wrote first — brief backoff, then re-read and retry.
+    await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+  }
+  throw new Error('Could not save — the tournament kept changing underneath. Please run the command again.');
 }
 
 // Find a match by its /matches list number (1-based over realMatches, the same

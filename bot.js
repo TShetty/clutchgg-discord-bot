@@ -94,8 +94,9 @@ function friendlyError(error) {
   if (/permission/i.test(msg)) {
     return '⚠️ I\'m missing a Discord permission needed for this. Check the bot\'s role settings.';
   }
-  // Fallback: still surface the real reason, trimmed, so it's not opaque.
-  return `⚠️ ${trimStr(msg, 300)}`;
+  // Fallback: generic message only. The full error (which may contain DB
+  // internals, IDs, or stack detail) goes to the logs — never to the user.
+  return '⚠️ Something went wrong running this command. Please try again — if it keeps failing, contact ClutchGG support.';
 }
 
 client.on('interactionCreate', async (interaction) => {

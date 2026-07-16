@@ -7,6 +7,44 @@ const SITE = 'https://clutchgg.in';
 const tournamentUrl = (id) => `${SITE}/tournament/${encodeURIComponent(id)}`;
 const matchUrl = (id) => `${SITE}/tournament-match/${encodeURIComponent(id)}`;
 
+// Timezone matches are scheduled in. The website records a bare `date`+`time`
+// with no zone; on the site those render in the viewer's local zone (India for
+// clutchgg.in). The bot runs on Railway (UTC), so a naive `new Date(...)` would
+// be hours off. We interpret match times in BOT_TIMEZONE (default IST).
+const MATCH_TZ = process.env.BOT_TIMEZONE || 'Asia/Kolkata';
+
+// The offset (in minutes) that `timeZone` is ahead of UTC at instant `date`.
+// Uses Intl formatting rather than a TZ library so there are no dependencies.
+function tzOffsetMinutes(date, timeZone) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const parts = Object.fromEntries(dtf.formatToParts(date).map((p) => [p.type, p.value]));
+  const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return (asUTC - date.getTime()) / 60_000;
+}
+
+// Convert a wall-clock `date` (YYYY-MM-DD) + `time` (HH:MM) that means "this
+// clock time in MATCH_TZ" into a UTC epoch millisecond value. Returns NaN for
+// missing/invalid input. This is the single source of truth for scheduling
+// comparisons (reminders, live announcements, begun checks).
+function matchStartMs(date, time, timeZone = MATCH_TZ) {
+  if (!date) return NaN;
+  const [y, mo, d] = date.split('-').map(Number);
+  const [hh, mm] = (time || '00:00').split(':').map(Number);
+  if ([y, mo, d, hh, mm].some(Number.isNaN)) return NaN;
+  // Start from the naive UTC interpretation, then subtract the zone offset so
+  // the wall-clock reads correctly in MATCH_TZ. Two passes handle DST edges
+  // (India has none, but this keeps it correct for other zones).
+  const naiveUTC = Date.UTC(y, mo - 1, d, hh, mm);
+  const off1 = tzOffsetMinutes(new Date(naiveUTC), timeZone);
+  const guess = naiveUTC - off1 * 60_000;
+  const off2 = tzOffsetMinutes(new Date(guess), timeZone);
+  return naiveUTC - off2 * 60_000;
+}
+
 // ─── Ported from tournamentDerive.ts ─────────────────────────────────────────
 
 // A bracket slot isn't a real, listable team until it names an actual roster.
@@ -33,15 +71,12 @@ function isMatchDecidedByMaps(match) {
 
 function getMatchStatus(date, time) {
   if (!date) return 'upcoming';
-  try {
-    const dt = new Date(`${date}T${time || '00:00'}`);
-    const diffH = (dt.getTime() - Date.now()) / 36e5;
-    if (diffH > -3 && diffH < 3) return 'live';
-    if (diffH < -3) return 'completed';
-    return 'upcoming';
-  } catch {
-    return 'upcoming';
-  }
+  const start = matchStartMs(date, time);
+  if (Number.isNaN(start)) return 'upcoming';
+  const diffH = (start - Date.now()) / 36e5;
+  if (diffH > -3 && diffH < 3) return 'live';
+  if (diffH < -3) return 'completed';
+  return 'upcoming';
 }
 
 function hasPlayedMap(m) {
@@ -184,6 +219,8 @@ function textTable(headers, rows) {
 
 module.exports = {
   SITE,
+  MATCH_TZ,
+  matchStartMs,
   tournamentUrl,
   matchUrl,
   isTeamSlotName,

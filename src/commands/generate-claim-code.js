@@ -6,7 +6,9 @@ const crypto = require('node:crypto');
 const { isSuperAdmin } = require('../permissions');
 const { getTournamentById, getDiscordLink, upsertDiscordLink } = require('../supabase');
 
-const newCode = () => crypto.randomBytes(6).toString('base64url'); // e.g. "8fQzKp3R"
+// 16 random bytes (~22 base64url chars) so the code can't be brute-forced even
+// without the per-user attempt limit in /claim-tournament.
+const newCode = () => crypto.randomBytes(16).toString('base64url');
 
 module.exports = {
   data: new SlashCommandBuilder()

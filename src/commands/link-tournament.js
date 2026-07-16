@@ -70,6 +70,14 @@ module.exports = {
       return;
     }
 
+    // Every chosen channel must belong to THIS guild (defensive — the picker
+    // already enforces it, but the bot must never post to a foreign server).
+    const foreign = [announce, schedule, results].find((c) => c.guildId && c.guildId !== interaction.guildId);
+    if (foreign) {
+      await interaction.editReply('❌ All channels must be in THIS server.');
+      return;
+    }
+
     const tournament = await getTournamentById(tournamentId);
     if (!tournament) {
       await interaction.editReply(

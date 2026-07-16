@@ -41,6 +41,18 @@ async function getTournamentById(id) {
   return data ? data.data : null;
 }
 
+// Like getTournamentById but also returns the row's updated_at, used as the
+// optimistic-lock token by saveTournament (write-utils.js).
+async function getTournamentRowById(id) {
+  const { data, error } = await supabase()
+    .from('tournaments_blob')
+    .select('data, updated_at')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { data: data.data, updatedAt: data.updated_at } : null;
+}
+
 async function upsertTournament(tournament) {
   const { error } = await supabase()
     .from('tournaments_blob')
@@ -49,6 +61,33 @@ async function upsertTournament(tournament) {
       { onConflict: 'id' }
     );
   if (error) throw error;
+}
+
+// Optimistic write: only succeeds if the row's updated_at still equals
+// expectedUpdatedAt (i.e. nobody wrote since we read). Returns true on success,
+// false when someone else won the race (caller should re-read and retry).
+// When expectedUpdatedAt is null we treat it as a first insert.
+async function updateTournamentIfUnchanged(tournament, expectedUpdatedAt) {
+  const nextUpdatedAt = new Date().toISOString();
+  if (expectedUpdatedAt == null) {
+    // No prior row — insert; if a concurrent insert beat us, this conflicts.
+    const { error } = await supabase()
+      .from('tournaments_blob')
+      .insert({ id: tournament.id, data: tournament, updated_at: nextUpdatedAt });
+    if (error) {
+      if (error.code === '23505') return false; // unique_violation → lost race
+      throw error;
+    }
+    return true;
+  }
+  const { data, error } = await supabase()
+    .from('tournaments_blob')
+    .update({ data: tournament, updated_at: nextUpdatedAt })
+    .eq('id', tournament.id)
+    .eq('updated_at', expectedUpdatedAt)
+    .select('id');
+  if (error) throw error;
+  return (data ?? []).length > 0; // 0 rows updated → someone else wrote first
 }
 
 // ─── Discord links (tournament ↔ organizer Discord IDs + channels) ───────────
@@ -97,7 +136,9 @@ module.exports = {
   supabase,
   getTournaments,
   getTournamentById,
+  getTournamentRowById,
   upsertTournament,
+  updateTournamentIfUnchanged,
   getDiscordLink,
   getDiscordLinksByGuild,
   getLinkByClaimCode,
