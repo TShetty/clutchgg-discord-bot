@@ -190,15 +190,17 @@
   <h2>What's in this guide</h2>
   <div class="toc">
     <div class="tocrow"><a href="#intro">1 &nbsp; Before you start</a></div>
-    <div class="tocrow"><a href="#workflow">2 &nbsp; New organizer: step-by-step setup</a></div>
-    <div class="tocrow"><a href="#daily">3 &nbsp; Running the tournament day-to-day</a></div>
-    <div class="tocrow"><a href="#auto">4 &nbsp; Automatic announcements</a></div>
-    <div class="tocrow"><a href="#ref-setup">5 &nbsp; Command reference — Setup</a></div>
-    <div class="tocrow"><a href="#ref-teams">6 &nbsp; Command reference — Teams</a></div>
-    <div class="tocrow"><a href="#ref-match">7 &nbsp; Command reference — Matches</a></div>
-    <div class="tocrow"><a href="#ref-info">8 &nbsp; Command reference — Info & stats</a></div>
-    <div class="tocrow"><a href="#ref-admin">9 &nbsp; Command reference — Admin</a></div>
-    <div class="tocrow"><a href="#faq">10 &nbsp; Troubleshooting & FAQ</a></div>
+    <div class="tocrow"><a href="#wizard">2 &nbsp; Fastest path: the /setup wizard</a></div>
+    <div class="tocrow"><a href="#workflow">3 &nbsp; Manual step-by-step setup</a></div>
+    <div class="tocrow"><a href="#captains">4 &nbsp; Captain self-registration</a></div>
+    <div class="tocrow"><a href="#daily">5 &nbsp; Running the tournament day-to-day</a></div>
+    <div class="tocrow"><a href="#auto">6 &nbsp; Automatic announcements</a></div>
+    <div class="tocrow"><a href="#ref-setup">7 &nbsp; Command reference — Setup</a></div>
+    <div class="tocrow"><a href="#ref-teams">8 &nbsp; Command reference — Teams</a></div>
+    <div class="tocrow"><a href="#ref-match">9 &nbsp; Command reference — Matches</a></div>
+    <div class="tocrow"><a href="#ref-info">10 &nbsp; Command reference — Info & stats</a></div>
+    <div class="tocrow"><a href="#ref-admin">11 &nbsp; Command reference — Admin</a></div>
+    <div class="tocrow"><a href="#faq">12 &nbsp; Troubleshooting & FAQ</a></div>
   </div>
 
   <div class="note" style="margin-top:18px">
@@ -251,13 +253,115 @@
   </ul>
 </section>
 
-<!-- ═══════════════ 2. WORKFLOW ═══════════════ -->
+<!-- ═══════════════ 2. WIZARD ═══════════════ -->
+<section class="page page-break" id="wizard">
+  <div class="kicker">Section 2 — recommended</div>
+  <h2>Fastest path: the /setup wizard</h2>
+  <p>Instead of running separate commands for each setup step, <code>/setup</code> walks you through
+  everything with popup forms, dropdowns and buttons — no options to remember. It picks up exactly
+  where you left off every time you run it, so you can stop and resume freely.</p>
+
+  <div class="example"><span class="c">/setup</span></div>
+
+  <p>Nothing to type as options — running the bare command opens an ephemeral (only-you-see-it)
+  message with a progress bar across the top: <span class="muted">✅ Details · ▶️ Teams · ◻ Bracket ·
+  ◻ Seeding · ◻ Done</span>. It figures out which step you're on from the tournament's current state,
+  so re-running <code>/setup</code> later always resumes at the right place — nothing is lost, nothing
+  repeats.</p>
+
+  <div class="step">
+    <span class="num">1</span><h3>Details — one popup form</h3>
+    <div class="body">
+      <p>Shown while the tournament has no start date yet. You get a single button,
+      <strong>📝 Fill in details</strong>; clicking it opens a Discord form (modal) with five fields:</p>
+      <table>
+        <tr><th style="width:32%">Field</th><th>Required?</th><th>Notes</th></tr>
+        <tr><td>Start date</td><td>Yes</td><td><code>YYYY-MM-DD</code>, e.g. <span class="muted">2026-08-01</span>. Rejected with an inline error if the format is wrong.</td></tr>
+        <tr><td>Description</td><td>No</td><td>Free text shown on the tournament's website page.</td></tr>
+        <tr><td>Max teams</td><td>No</td><td>A number, 2–128.</td></tr>
+        <tr><td>Total prize pool</td><td>No</td><td>Number, in INR.</td></tr>
+        <tr><td>Per-place prizes</td><td>No</td><td><code>position:prize</code> pairs, comma-separated — e.g. <span class="muted">1:25000, 2:15000, 3:10000</span>.</td></tr>
+      </table>
+      <p class="muted">Submitting with a bad date or an out-of-range team count re-shows the same
+      "Try again" button with the specific error listed — your other fields aren't lost. Anything
+      left blank is simply skipped; you can top these up later with <code>/set-details</code>.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">2</span><h3>Teams — import or wait for captains</h3>
+    <div class="body">
+      <p>Shown once details are saved but fewer than 2 teams exist. The wizard doesn't collect teams
+      itself — it points you at <code>/import-teams</code> (or tells you captains can self-register
+      with <code>/register-team</code>, see Section 5) and gives you one button,
+      <strong>🔄 I've imported — continue</strong>. Press it any time after teams exist and the wizard
+      re-checks and advances — you can leave the wizard message open and go run the import command in
+      a different message, then come back and click it.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">3</span><h3>Bracket — pick a format from a dropdown</h3>
+    <div class="body">
+      <p>Shown once ≥2 teams exist and no bracket has been generated yet. One dropdown, three options:</p>
+      <table>
+        <tr><th style="width:28%">Option</th><th>Behavior</th></tr>
+        <tr><td>🗡️ Single elimination</td><td>Knockout bracket. Generates round 1 with open slots, then advances to Step 4 (Seeding).</td></tr>
+        <tr><td>⚔️ Double elimination</td><td>Winners + losers bracket. Also advances to Step 4 to seed round 1 of the winners side.</td></tr>
+        <tr><td>🔁 Round robin</td><td>Every team plays every team; pairings and schedule are generated immediately — <strong>no seeding step</strong>, the wizard jumps straight to Step 5 (Done).</td></tr>
+      </table>
+      <p class="muted">Picking a type fails safely if the tournament has already begun, or if fewer
+      than 2 teams exist by the time you click (someone may have removed a team meanwhile) — you get
+      an inline error instead of a broken bracket.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">4</span><h3>Seeding — one dropdown per open slot</h3>
+    <div class="body">
+      <p>Elimination brackets only (round robin skips this). The embed always names exactly one open
+      slot — e.g. <em>"Now placing: Match 1 · Slot 1 (top)"</em> — with a live count like
+      <span class="muted">(0/8 slots filled)</span>, plus the full pairing list so far so you can see
+      the whole bracket taking shape. Below it is a single dropdown listing only the teams
+      <strong>not yet placed</strong> (paginated with ◀ Prev / Next ▶ buttons past 25 teams).</p>
+      <p>Pick a team and the wizard fills that slot, then <strong>automatically re-renders showing the
+      next open slot</strong> — no need to re-run the command or pick match/slot numbers yourself.
+      Repeat until every slot is filled (or press <strong>Finish later</strong> to pause — resuming
+      with <code>/setup</code> picks up on the same open slot).</p>
+      <p class="muted">If your team count doesn't divide evenly into the bracket size, leftover slots
+      stay open as byes once every team is placed — the wizard tells you this and moves straight to
+      Done rather than blocking on slots nobody can fill.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="num">5</span><h3>Done — what to run next</h3>
+    <div class="body">
+      <p>A green summary embed with the full seeded bracket and four suggested next commands:
+      <code>/update-match</code> (or <code>/auto-schedule</code> to do them all at once) to set match
+      times, <code>/create-team-roles</code> so reminders can ping teams, <code>/post
+      what:upcoming matches</code> to announce, and <code>/lock-tournament action:lock</code> to freeze
+      everything once you're ready. <code>/bracket</code> shows the live result any time.</p>
+    </div>
+  </div>
+
+  <div class="tip"><strong>Why it's faster.</strong> No need to look up match/slot numbers —
+  the wizard tracks them for you and only ever offers teams that haven't been placed yet. Every
+  interaction recomputes the current step from the tournament's actual data, so the wizard survives
+  restarts, multiple organizers clicking at once, and picking up days later.</div>
+
+  <div class="note"><strong>Two-stage tournaments</strong> (group stage → playoffs) aren't driven by
+  the wizard — use <code>/set-bracket stage:stage 1</code> / <code>stage:stage 2</code> manually,
+  same as the website's separate-stage flow (Section 3, Step 4).</div>
+</section>
+
+<!-- ═══════════════ 3. WORKFLOW ═══════════════ -->
 <section class="page page-break" id="workflow">
-  <div class="kicker">Section 2 — do these in order</div>
-  <h2>New organizer: step-by-step setup</h2>
-  <p>Follow these steps top to bottom, the same order as the website admin portal. Each step builds
-  on the one before it — you can't build a bracket before teams exist, and you can't assign teams to
-  slots before a bracket exists.</p>
+  <div class="kicker">Section 3 — do these in order</div>
+  <h2>Manual step-by-step setup</h2>
+  <p>Prefer typing commands directly, need a two-stage bracket, or want more control than the wizard
+  offers? Follow these steps top to bottom — the same order as the website admin portal. Each step
+  builds on the one before it.</p>
 
   <div class="step">
     <span class="num">1</span><h3>Link your server (claim the tournament)</h3>
@@ -295,6 +399,9 @@
       <div class="warn"><strong>Photos aren't imported via Excel</strong> — upload player/team photos
       from the website edit section, exactly like the website rule. Use <code>mode:replace</code>
       only if you want to wipe and re-import all teams.</div>
+      <div class="tip"><strong>Alternative: let captains register themselves</strong> with
+      <code>/register-team</code> instead of collecting an Excel file — no spreadsheet round-trip.
+      See Section 4.</div>
     </div>
   </div>
 
@@ -332,8 +439,14 @@
   <div class="step">
     <span class="num">6</span><h3>Schedule the matches</h3>
     <div class="body">
-      <p>Set each match's date, time, series format and stream link with <code>/update-match</code>.
-      Run with no options to list matches and their numbers.</p>
+      <p><strong>Fastest way — schedule everything at once</strong> with <code>/auto-schedule</code>:
+      give it the first match's date/time, the gap between matches, and how many per day. It times
+      every match in bracket order and rolls over to the next day automatically.</p>
+      <div class="example"><span class="c">/auto-schedule</span> <span class="o">start_date:</span><span class="v">2026-08-01</span> <span class="o">start_time:</span><span class="v">18:00</span> <span class="o">gap:</span><span class="v">60</span> <span class="o">per_day:</span><span class="v">4</span></div>
+      <p class="muted">Only fills matches that don't already have a date — safe to re-run. Add
+      <code>overwrite:true</code> to reschedule everything (completed matches are never touched).
+      Fine-tune any single match afterwards with <code>/update-match</code>.</p>
+      <p>Or set matches one at a time — date, time, series format and stream link:</p>
       <div class="example"><span class="c">/update-match</span> <span class="o">match:</span><span class="v">1</span> <span class="o">date:</span><span class="v">2026-08-01</span> <span class="o">time:</span><span class="v">18:30</span> <span class="o">format:</span><span class="v">best of 3</span> <span class="o">stream:</span><span class="v">https://youtube.com/watch?v=…</span></div>
       <div class="note"><strong>Times are India Standard Time (IST)</strong> by default — the same
       wall-clock time your players see on the website. Reminders and the "LIVE" post fire based on
@@ -373,9 +486,51 @@
   </div>
 </section>
 
-<!-- ═══════════════ 3. DAILY ═══════════════ -->
+<!-- ═══════════════ 4. CAPTAINS ═══════════════ -->
+<section class="page page-break" id="captains">
+  <div class="kicker">Section 4</div>
+  <h2>Captain self-registration</h2>
+  <p>Instead of collecting an Excel file from every team, let captains register themselves — no
+  spreadsheet round-trip, and you just click Approve.</p>
+
+  <h3>How it works</h3>
+  <table>
+    <tr><th style="width:20%">Who</th><th>Does what</th></tr>
+    <tr><td><span class="pill any">CAPTAIN</span></td><td>Runs <code>/register-team</code> in the server. A popup form asks for the team name and players (one per line: <span class="muted">Name, Riot#tag, role</span>). Submitting it makes them the team's captain.</td></tr>
+    <tr><td><span class="pill org">ORGANIZER</span></td><td>Gets pinged with an approval card in the announce channel — team name, captain, full roster. Click <strong>✅ Approve</strong> or <strong>❌ Reject</strong>.</td></tr>
+  </table>
+
+  <div class="example"><span class="cm"># a captain runs this — no options, it opens a form</span>
+<span class="c">/register-team</span></div>
+
+  <div class="tip"><strong>What happens on Approve.</strong> The team is added to the tournament
+  (same shape as an Excel import — shows up in <code>/teams</code>, <code>/roster</code>, works with
+  <code>/setup</code>'s seeding step). A Discord role named after the team is created automatically
+  and handed straight to the captain, so match reminders can already tag them.</div>
+
+  <h3>Who is "the captain"?</h3>
+  <p>Whoever runs <code>/register-team</code> — they're in the Discord server by definition, so
+  there's no ambiguity. The bot links their Discord account to the team the moment they submit the
+  form.</p>
+
+  <h3>If the captain isn't in Discord yet</h3>
+  <p>Two common cases where a team exists but has no linked captain:</p>
+  <ul>
+    <li><strong>Team was Excel-imported</strong> — <code>/import-teams</code> has no concept of a captain.</li>
+    <li><strong>Captain joins the server later</strong> — after registration, before they've joined.</li>
+  </ul>
+  <p>An organizer links them any time with <code>/set-captain</code> — this also creates/hands over
+  the team role:</p>
+  <div class="example"><span class="c">/set-captain</span> <span class="o">team:</span><span class="v">velocity</span> <span class="o">user:</span><span class="v">@PlayerName</span></div>
+  <div class="note"><strong>Why isn't this automatic on join?</strong> Detecting "a new member just
+  joined and claims to be team X's captain" would need Discord's privileged GuildMembers intent and
+  a way to verify the claim — too easy to spoof. An explicit organizer command is the reliable,
+  abuse-proof path.</div>
+</section>
+
+<!-- ═══════════════ 5. DAILY ═══════════════ -->
 <section class="page page-break" id="daily">
-  <div class="kicker">Section 3</div>
+  <div class="kicker">Section 5</div>
   <h2>Running the tournament day-to-day</h2>
 
   <h3>When a match finishes</h3>
@@ -410,35 +565,44 @@
   <em>active</em> tournament. Switch which one with <code>/use-tournament</code>.</div>
 </section>
 
-<!-- ═══════════════ 4. AUTO ═══════════════ -->
+<!-- ═══════════════ 6. AUTO ═══════════════ -->
 <section class="page page-break" id="auto">
-  <div class="kicker">Section 4</div>
+  <div class="kicker">Section 6</div>
   <h2>Automatic announcements</h2>
   <p>Once your server is linked, the bot posts these on its own — no command needed. Every one can be
-  switched on or off.</p>
+  switched on or off. All times are in the tournament timezone (IST by default).</p>
 
   <table>
     <tr><th>Post</th><th>When it fires</th><th>Where</th></tr>
+    <tr><td>☀️ <strong>Morning schedule</strong></td><td>Once a day, from 8am, listing that day's matches with times and stream links.</td><td>Schedule channel</td></tr>
     <tr><td>⏰ <strong>Match reminder</strong></td><td>15 minutes before a scheduled match. Pings the two teams' roles if they exist.</td><td>Schedule channel</td></tr>
     <tr><td>🔴 <strong>Live announcement</strong></td><td>The moment a match's start time passes (10-minute grace window — never fires on old matches or restarts).</td><td>Schedule channel</td></tr>
     <tr><td>🏆 <strong>Result card</strong></td><td>The moment a match finishes on clutchgg.in — score, MVP + stats, and a unique flavour line.</td><td>Results channel</td></tr>
+    <tr><td>👋 <strong>Unfinished-match nudge</strong></td><td>DM to organizers when a match is 3+ hours past its start time with no result recorded yet.</td><td>Organizer DMs</td></tr>
+    <tr><td>🤖 <strong>Auto-finish</strong> <span class="pill eph">OPT-IN</span></td><td>The instant clutchgg.in's map data decides a match, the winner is recorded and the bracket advances — no <code>/finish-match</code> needed. Off by default.</td><td>—</td></tr>
     <tr><td>🌙 <strong>End-of-day summary</strong></td><td>Once all of a day's matches are complete — with the standings table.</td><td>Announce channel</td></tr>
   </table>
 
+  <div class="warn"><strong>Auto-finish uses the same validation as <code>/finish-match</code>.</strong>
+  It only ever records a result the website's own map data has already decided — it can't record a
+  score that doesn't match clutchgg.in, because there's nothing to "type" for it to get wrong.</div>
+
   <h3>Turning them on and off</h3>
-  <p>Use <code>/notifications</code>. With no options it shows the current on/off state of all four.
+  <p>Use <code>/notifications</code>. With no options it shows the current on/off state of everything.
   Toggle one, or all at once:</p>
   <div class="example"><span class="cm"># see current settings</span>
 <span class="c">/notifications</span>
 <span class="cm"># turn off just the live announcements</span>
 <span class="c">/notifications</span> <span class="o">kind:</span><span class="v">live-match announcements</span> <span class="o">state:</span><span class="v">off</span>
+<span class="cm"># opt in to auto-finish</span>
+<span class="c">/notifications</span> <span class="o">kind:</span><span class="v">auto-finish decided matches</span> <span class="o">state:</span><span class="v">on</span>
 <span class="cm"># turn everything off (e.g. during a break)</span>
 <span class="c">/notifications</span> <span class="o">kind:</span><span class="v">everything (all of the above)</span> <span class="o">state:</span><span class="v">off</span></div>
 </section>
 
 <!-- ═══════════════ 5–9. COMMAND REFERENCE ═══════════════ -->
 <section class="page page-break">
-  <div class="kicker">Sections 5–9</div>
+  <div class="kicker">Sections 7–11</div>
   <h2>Full command reference</h2>
   <p class="muted">Every command, its options and who can use it. Options in <strong>bold</strong> are
   required; the rest are optional. Most write commands reply privately (only you see them).</p>
@@ -446,6 +610,7 @@
   <div class="cat-head" id="ref-setup">⚙️ Setup <span class="pill org">ORGANIZER</span></div>
   <table>
     <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
+    <tr><td class="cmd"><code>/setup</code></td><td>Guided wizard that walks through the whole setup flow — details, teams, bracket, roles — in one place. No options.</td></tr>
     <tr><td class="cmd"><code>/set-details</code></td><td>Update tournament details — only the fields you fill in change. Options: <code>description</code>, <code>start_date</code> (YYYY-MM-DD), <code>max_teams</code>, <code>event_type</code> (online/offline/hybrid), <code>location</code>, <code>prize_total</code>, <code>prize_currency</code> (INR/USD/EUR/GBP), <code>prize_places</code> (e.g. <span class="muted">1:25000, 2:10000</span>), <code>status</code> (planning/registration/in-progress/completed).</td></tr>
     <tr><td class="cmd"><code>/import-teams</code></td><td>Import teams from an <code>.xlsx</code> file (run with no file to get the template). Options: <code>file</code>, <code>mode</code> (add to existing / replace all).</td></tr>
     <tr><td class="cmd"><code>/set-bracket</code></td><td>Generate the bracket. Options: <strong><code>type</code></strong> (single elim / double elim / round robin), <code>stage</code> (single / stage 1 / stage 2), <code>qualifiers</code> (stage 1 only), <code>points_per_win</code> (round robin only, default 3), <code>slots</code> (force bracket size), <code>overwrite</code> (needed to replace a bracket).</td></tr>
@@ -454,16 +619,19 @@
     <tr><td class="cmd"><code>/lock-tournament</code></td><td>Lock or unlock all bot-side changes. Option: <strong><code>action</code></strong> (lock / unlock).</td></tr>
   </table>
 
-  <div class="cat-head" id="ref-teams">👥 Teams &amp; rosters <span class="pill org">ORGANIZER</span></div>
+  <div class="cat-head" id="ref-teams">👥 Teams &amp; rosters</div>
   <table>
     <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
-    <tr><td class="cmd"><code>/update-roster</code></td><td>Edit teams and players. Options (pick one action): <code>add-team</code>, <code>rename-team</code>, <code>remove-team</code>, <code>add-player</code>, <code>edit-player</code>, <code>remove-player</code>. Set names, Riot IDs and roles.</td></tr>
+    <tr><td class="cmd"><code>/update-roster</code> <span class="pill org">ORG</span></td><td>Edit teams and players. Options (pick one action): <code>add-team</code>, <code>rename-team</code>, <code>remove-team</code>, <code>add-player</code>, <code>edit-player</code>, <code>remove-player</code>. Set names, Riot IDs and roles.</td></tr>
+    <tr><td class="cmd"><code>/register-team</code> <span class="pill any">ANYONE</span></td><td>Captain self-registration — opens a form for team name and players (one per line: name, Riot#tag, role). Submitting it makes the runner the team's captain. No options.</td></tr>
+    <tr><td class="cmd"><code>/set-captain</code> <span class="pill org">ORG</span></td><td>Link (or hand over) a team's captain to a Discord member. Options: <strong><code>team</code></strong>, <strong><code>user</code></strong>.</td></tr>
   </table>
 
   <div class="cat-head" id="ref-match">🎮 Matches <span class="pill org">ORGANIZER</span></div>
   <table>
     <tr><th style="width:26%">Command</th><th>What it does &amp; options</th></tr>
-    <tr><td class="cmd"><code>/update-match</code></td><td>Set a match's schedule and links (no options = list matches). Options: <code>match</code>, <code>date</code> (YYYY-MM-DD), <code>time</code> (HH:MM, 24h), <code>format</code> (bo1/bo3/bo5), <code>stream</code> (YouTube), <code>clip_title</code> + <code>clip_url</code> (add a highlight).</td></tr>
+    <tr><td class="cmd"><code>/auto-schedule</code></td><td>Auto-schedule every unscheduled match at once, spaced out automatically. Options: <strong><code>start_date</code></strong> (YYYY-MM-DD), <strong><code>start_time</code></strong> (HH:MM, 24h), <code>gap</code> (minutes between matches, default 60), <code>per_day</code> (matches per day before rolling to the next day).</td></tr>
+    <tr><td class="cmd"><code>/update-match</code></td><td>Set a single match's schedule and links (no options = list matches). Options: <code>match</code>, <code>date</code> (YYYY-MM-DD), <code>time</code> (HH:MM, 24h), <code>format</code> (bo1/bo3/bo5), <code>stream</code> (YouTube), <code>clip_title</code> + <code>clip_url</code> (add a highlight).</td></tr>
     <tr><td class="cmd"><code>/finish-match</code></td><td>Record a result — validated against clutchgg.in (no options = list pending). Options: <code>match</code>, <code>score</code> (e.g. <span class="muted">2-1</span>, first team first), <code>no_stats_override</code> (finish a match with no website map data — use with care).</td></tr>
     <tr><td class="cmd"><code>/post</code></td><td>Publish an announcement to a channel. Options: <strong><code>what</code></strong> (upcoming matches / standings / top players / match result), <code>match</code> (for a result), <code>channel</code> (announce / schedule / results).</td></tr>
     <tr><td class="cmd"><code>/notifications</code></td><td>Turn automatic posts on/off (no options = show current state). Options: <code>kind</code> (reminders / live / results / daily / everything), <code>state</code> (on / off).</td></tr>

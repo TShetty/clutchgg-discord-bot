@@ -4,7 +4,7 @@
 // Two-stage events: generate stage 1 and stage 2 separately.
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { requireOrganizer, saveTournament, tournamentHasBegun } = require('../write-utils');
-const { generateSingleElimination, generateDoubleElimination, generateRoundRobin } = require('../bracket-gen');
+const { generateSingleElimination, generateDoubleElimination, generateRoundRobin, scopeBracketIds } = require('../bracket-gen');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -110,7 +110,10 @@ module.exports = {
 
       if (type === 'roundrobin' && pointsPerWin) bracket.pointsPerWin = pointsPerWin;
 
-      t[field] = bracket;
+      // Website parity: stage brackets get id-scoped so stage 1 / stage 2 match
+      // ids never collide (the website resolves stage matches by id, stage 1
+      // first). The main single-stage bracket stays unscoped, as on the website.
+      t[field] = stage === 'main' ? bracket : scopeBracketIds(bracket, t.id);
       if (stage === 'stage1') {
         t.tournamentType = 'group';
         t.stage1Config = {

@@ -40,7 +40,11 @@ function tournamentHasBegun(tournament) {
       }
     }
   }
-  if (tournament.event?.startDate) {
+  // The nominal start date only locks the bracket TYPE once a bracket exists.
+  // Before any bracket is generated there is nothing to lock, so a start date
+  // that is merely today/past must not block creating the first bracket.
+  const hasBracket = brackets.some((b) => b);
+  if (hasBracket && tournament.event?.startDate) {
     const t = matchStartMs(tournament.event.startDate, '00:00');
     if (!Number.isNaN(t) && t <= now) return true;
   }
@@ -111,6 +115,12 @@ function propagateWinner(t, finished) {
   const winner = { id: finished.winner, name: winnerIsT1 ? finished.team1Name : finished.team2Name };
   const loser = { id: winnerIsT1 ? finished.team2Id : finished.team1Id, name: winnerIsT1 ? finished.team2Name : finished.team1Name };
 
+  // Single-elim id convention: match_<round>_<index> with winner_<round>_<index>
+  // placeholder team ids. Stage brackets carry a `<tournamentId>__` scope prefix
+  // on the MATCH id (website parity) while the placeholder team ids stay
+  // unscoped, so parse the id's tail rather than the whole string.
+  const se = !finished.winnerGoesTo ? /(?:^|__)match_(\d+)_(\d+)$/.exec(finished.id) : null;
+
   const apply = (b) => {
     if (!b) return;
     for (const m of b.rounds.flat()) {
@@ -124,18 +134,21 @@ function propagateWinner(t, finished) {
         else { m.team2Id = loser.id; m.team2Name = loser.name; }
         m.autoPopulated = true;
       }
-      // Single-elim id convention: winner_<round>_<index> placeholders.
-      if (!finished.winnerGoesTo && finished.id.startsWith('match_')) {
-        const [, r, i] = finished.id.split('_').map(Number);
+      if (se) {
+        const [, r, i] = se;
         if (m.team1Id === `winner_${r}_${i}`) { m.team1Id = winner.id; m.team1Name = winner.name; }
         if (m.team2Id === `winner_${r}_${i}`) { m.team2Id = winner.id; m.team2Name = winner.name; }
       }
     }
   };
-  apply(t.generatedBracket);
-  apply(t.stage1Bracket);
-  apply(t.stage2Bracket);
-  apply(t.knockoutBracket);
+  // Propagate only inside the bracket that owns the finished match — every
+  // single-elim bracket shares the same winner_<r>_<i> placeholder ids, so
+  // applying across all brackets would leak a stage 1 winner into stage 2
+  // (the website's propagateMatchInBracket is per-bracket for the same reason).
+  const brackets = [t.generatedBracket, t.stage1Bracket, t.stage2Bracket, t.knockoutBracket];
+  const owner = brackets.find((b) => b && b.rounds.flat().some((m) => m.id === finished.id));
+  if (owner) apply(owner);
+  else brackets.forEach(apply); // legacy fallback: unknown id — old behavior
 }
 
 // Replace a match by id across every bracket (applyMatchToTournament port).

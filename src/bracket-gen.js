@@ -68,9 +68,13 @@ function generateSingleElimination(teams, forcedSize) {
 // loserGoesTo), same structure and ids as the website generator.
 function generateDoubleElimination(teams, forcedSize) {
   const size = forcedSize ? nextPowerOfTwo(forcedSize) : nextPowerOfTwo(teams.length);
-  const byes = size - teams.length;
+  // Cap at `size` so a forcedSize SMALLER than the team list (e.g. a stage-2
+  // bracket sized to the qualifier count) still yields a bracket of that size;
+  // the team objects only determine the count — slots stay empty either way.
+  const kept = teams.slice(0, size);
+  const byes = size - kept.length;
   const padded = [
-    ...teams,
+    ...kept,
     ...Array.from({ length: Math.max(0, byes) }, (_, i) => ({ id: `bye_${i}`, name: 'BYE', players: [] })),
   ];
   const teamCount = padded.length;
@@ -236,4 +240,61 @@ function generateRoundRobin(teams) {
   };
 }
 
-module.exports = { nextPowerOfTwo, generateSingleElimination, generateDoubleElimination, generateRoundRobin };
+// Group stage — one round per group, round-robin within each group. Ported 1:1
+// from the website's handleTwoStageTournamentComplete (TournamentCreation.tsx):
+// match ids are `gs_<groupId>_<t1>_<t2>` (NOT re-prefixed elsewhere), the
+// bracketType is 'roundrobin', and each group occupies one `round` index.
+// `groups` is [{ id, name, teams: [{ id, name }] }].
+function generateGroupStage(groups, pointsPerWin) {
+  const rounds = groups.map((group, gi) => {
+    const matches = [];
+    const teams = group.teams;
+    let pos = 0;
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        matches.push({
+          id: `gs_${group.id}_${teams[i].id}_${teams[j].id}`,
+          team1Id: teams[i].id,
+          team2Id: teams[j].id,
+          team1Name: teams[i].name,
+          team2Name: teams[j].name,
+          round: gi,
+          position: pos++,
+        });
+      }
+    }
+    return matches;
+  });
+  const bracket = { rounds, bracketType: 'roundrobin', customizationHistory: [] };
+  if (pointsPerWin) bracket.pointsPerWin = pointsPerWin;
+  return bracket;
+}
+
+// Prefix every match id (and winnerGoesTo/loserGoesTo references) with the
+// tournament id — ported 1:1 from the website (scopeBracketIds in
+// TournamentCreation.tsx). Stage 1 and stage 2 brackets share generator ids
+// (match_0_0, grand_final, …), and the website resolves stage matches BY id
+// (stage 1 checked first), so unscoped stage brackets would collide. The
+// website applies this to stage1 (non-groupstage) and stage2 brackets only —
+// group-stage `gs_…` ids and the legacy main bracket stay unscoped.
+function scopeBracketIds(bracket, prefix) {
+  const idMap = {};
+  const remap = (id) => {
+    if (!id) return id;
+    if (!idMap[id]) idMap[id] = `${prefix}__${id}`;
+    return idMap[id];
+  };
+  return {
+    ...bracket,
+    rounds: bracket.rounds.map((round) =>
+      round.map((m) => ({
+        ...m,
+        id: remap(m.id),
+        winnerGoesTo: m.winnerGoesTo ? { ...m.winnerGoesTo, matchId: remap(m.winnerGoesTo.matchId) } : undefined,
+        loserGoesTo: m.loserGoesTo ? { ...m.loserGoesTo, matchId: remap(m.loserGoesTo.matchId) } : undefined,
+      }))
+    ),
+  };
+}
+
+module.exports = { nextPowerOfTwo, generateSingleElimination, generateDoubleElimination, generateRoundRobin, generateGroupStage, scopeBracketIds };
