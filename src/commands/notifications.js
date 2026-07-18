@@ -13,6 +13,7 @@ const KINDS = {
   morning: { label: '☀️ Morning "today\'s matches" post', defaultOn: true },
   daily: { label: '🌙 End-of-day summary', defaultOn: true },
   nudges: { label: '👋 Organizer DM when a match is 3h+ past start with no result', defaultOn: true },
+  vodreminder: { label: '📼 Organizer DM to swap a stream link for the VOD when the broadcast ends', defaultOn: true },
   autofinish: { label: '🤖 Auto-record winners when clutchgg.in map data decides a match', defaultOn: false },
 };
 
@@ -30,6 +31,7 @@ module.exports = {
         { name: 'morning schedule post', value: 'morning' },
         { name: 'end-of-day summary', value: 'daily' },
         { name: 'unfinished-match DM nudges', value: 'nudges' },
+        { name: 'VOD-link reminders (stream ended)', value: 'vodreminder' },
         { name: 'auto-finish decided matches', value: 'autofinish' },
         { name: 'everything (all of the above)', value: 'all' },
       )

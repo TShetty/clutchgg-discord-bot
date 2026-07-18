@@ -29,6 +29,7 @@ const SECTIONS = [
     lines: [
       '`/setup` — **guided setup wizard**: details form, bracket picker and click-to-seed slots — start here',
       '`/set-details` — edit description, dates, prize pool, max teams, status',
+      '`/set-prizes` — manage the prize pool place-by-place: set/remove a placement, total, currency, view or clear',
       '`/import-teams` — import teams from .xlsx (run without a file to get the template)',
       '`/update-roster` — add/rename/remove teams & players, set Riot IDs and roles',
       '`/set-captain team:<name> user:@member` — link a captain to a team (+ team role)',
@@ -43,6 +44,8 @@ const SECTIONS = [
     name: '🎮 Running matches (organizers)',
     lines: [
       '`/update-match` — set date, time, bo1/bo3/bo5, stream link, clips',
+      '`/find-match` — find the Valorant match ID(s) for a match by searching a roster player\'s recent customs',
+      '`/update-score` — pull Valorant stats onto a match (scoreboard + player K/D/ACS); adds maps for BO3, auto-advances the winner',
       '`/finish-match` — record a result; the score is validated against clutchgg.in data',
       '`/post` — publish upcoming matches / standings / top players / a result card to your tournament channel',
       '`/notifications` — toggle each automatic post: reminders, live, results, morning/daily posts, nudges, auto-finish',

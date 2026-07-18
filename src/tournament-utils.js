@@ -110,6 +110,35 @@ function deriveScore(m) {
   return { s1, s2 };
 }
 
+// ─── Prize pool (ported from TournamentCreation.tsx) ─────────────────────────
+
+// Same currency symbols and default as the website's CURRENCY_SYMBOLS.
+const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', EUR: '€', GBP: '£' };
+const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP'];
+
+// Mirrors formatPrize: prepend the currency symbol only for a bare number
+// (a value that starts with a digit). Values that already carry a symbol or are
+// free text ("Trip to LAN", "TBD") are returned verbatim.
+function formatPrize(value, currency) {
+  const v = (value ?? '').trim();
+  if (!v) return '';
+  if (!/^\d/.test(v)) return v;
+  return `${CURRENCY_SYMBOLS[currency ?? 'INR']}${v}`;
+}
+
+const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th'}`;
+
+// Render a prizePool blob to lines for an embed field.
+function formatPrizePool(pool) {
+  if (!pool || (!pool.total && !(pool.places ?? []).length)) return null;
+  const parts = [];
+  if (pool.total) parts.push(`**Total: ${formatPrize(pool.total, pool.currency)}**`);
+  for (const place of [...(pool.places ?? [])].sort((a, b) => a.position - b.position)) {
+    parts.push(`${ordinal(place.position)}: ${formatPrize(place.prize, pool.currency)}`);
+  }
+  return parts.join('\n');
+}
+
 // ─── Ported from BracketDisplay.tsx ──────────────────────────────────────────
 
 const DEFAULT_POINTS_PER_WIN = 3;
@@ -234,4 +263,9 @@ module.exports = {
   realMatches,
   aggregatePlayerStats,
   textTable,
+  CURRENCY_SYMBOLS,
+  CURRENCIES,
+  formatPrize,
+  formatPrizePool,
+  ordinal,
 };

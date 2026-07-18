@@ -105,6 +105,7 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
     const handler = interaction.customId?.startsWith('wiz:') ? require('./src/wizard')
       : interaction.customId?.startsWith('reg:') ? require('./src/registration')
+      : interaction.customId?.startsWith('usc:') ? require('./src/update-score-handler')
       : null;
     if (!handler) return;
     try {

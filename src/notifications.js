@@ -17,6 +17,7 @@ const { supabase, getTournaments, upsertDiscordLink } = require('./supabase');
 const { matchUrl, tournamentUrl, deriveScore, realMatches, computeRRStandings, textTable, matchStartMs, isMatchDecidedByMaps, MATCH_TZ } = require('./tournament-utils');
 const { saveTournament, propagateWinner } = require('./write-utils');
 const { matchMvp } = require('./mvp');
+const { isLiveChannelUrl, isChannelOffline, twitchChannel } = require('./twitch');
 
 const POLL_MS = 60_000;
 
@@ -427,6 +428,59 @@ async function tick(client) {
         if (sent) {
           await markSent(t.id, 'nudge', item.match.id);
           console.log(`[NOTIFY] nudged organizers: ${m.team1Name} vs ${m.team2Name}`);
+        }
+      }
+    }
+
+    // Update-VOD-link nudge: a completed match whose streamUrl is still a LIVE
+    // Twitch channel link (twitch.tv/<channel>) — once that broadcast goes
+    // offline the site can no longer show the recording, so DM the organizers
+    // once to swap the link for the VOD (twitch.tv/videos/<id>). Deduped per
+    // match; only fires for matches within the last 48h so first-deploy
+    // backlogs don't spam. Skips cleanly if the channel is still live or the
+    // offline check is inconclusive.
+    if (prefs.vodreminder !== false && (link.discord_user_ids ?? []).length) {
+      const now = Date.now();
+      const candidates = items.filter((i) =>
+        i.status === 'completed' &&
+        i.match.streamUrl && isLiveChannelUrl(i.match.streamUrl) &&
+        i.match.date && i.match.time
+      );
+      for (const item of candidates) {
+        const start = matchStartMs(item.match.date, item.match.time);
+        if (Number.isNaN(start)) continue;
+        const hoursPast = (now - start) / 36e5;
+        if (hoursPast < 0 || hoursPast > 48) continue;
+        if (await alreadySent(t.id, 'vodreminder', item.match.id)) continue;
+
+        const channel = twitchChannel(item.match.streamUrl);
+        const offline = await isChannelOffline(channel);
+        if (offline !== true) continue; // still live, or couldn't tell → wait
+
+        const m = item.match;
+        const embed = new EmbedBuilder()
+          .setTitle('📼 Update the stream link to the VOD')
+          .setDescription(
+            `The Twitch stream for **${m.team1Name} vs ${m.team2Name}** (${item.stage}, ${t.name}) has ended — \`${channel}\` is now offline.\n\n` +
+            `The match page still points at the live channel, so it can't show the recording. Swap it to the VOD link:\n` +
+            `• Open [the match page](${matchUrl(m.id)}) → edit the stream URL to the VOD (\`twitch.tv/videos/<id>\`)\n` +
+            `• Find the VOD under the channel's **Videos** tab: https://www.twitch.tv/${channel}/videos\n\n` +
+            '-# Turn these off with `/notifications kind:vod-reminders state:off`'
+          )
+          .setColor(0x9147ff);
+        let sent = false;
+        for (const uid of link.discord_user_ids) {
+          try {
+            const user = await client.users.fetch(uid);
+            await user.send({ embeds: [embed] });
+            sent = true;
+          } catch (e) {
+            console.error(`[NOTIFY] could not DM organizer ${uid} (vod):`, e.message);
+          }
+        }
+        if (sent) {
+          await markSent(t.id, 'vodreminder', item.match.id);
+          console.log(`[NOTIFY] VOD-link reminder sent: ${m.team1Name} vs ${m.team2Name}`);
         }
       }
     }

@@ -1,19 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { requireLinkedTournament } = require('../context');
-const { tournamentUrl, allBrackets } = require('../tournament-utils');
-
-// Same currency symbols as the website (TournamentCreation.tsx).
-const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', EUR: '€', GBP: '£' };
-
-// Mirrors formatPrize on the website: prepend symbol only for bare numbers.
-function formatPrize(value, currency) {
-  const v = (value ?? '').trim();
-  if (!v) return '';
-  if (!/^\d/.test(v)) return v;
-  return `${CURRENCY_SYMBOLS[currency ?? 'INR']}${v}`;
-}
-
-const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th'}`;
+const { tournamentUrl, allBrackets, formatPrizePool } = require('../tournament-utils');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -39,15 +26,8 @@ module.exports = {
       embed.addFields({ name: 'Type', value: t.event.type ?? 'online', inline: true });
       if (t.event.location) embed.addFields({ name: 'Location', value: t.event.location, inline: true });
 
-      const pool = t.event.prizePool;
-      if (pool && (pool.total || pool.places?.length)) {
-        const parts = [];
-        if (pool.total) parts.push(`**Total: ${formatPrize(pool.total, pool.currency)}**`);
-        for (const place of pool.places ?? []) {
-          parts.push(`${ordinal(place.position)}: ${formatPrize(place.prize, pool.currency)}`);
-        }
-        embed.addFields({ name: '💰 Prize pool', value: parts.join('\n').slice(0, 1024), inline: false });
-      }
+      const poolText = formatPrizePool(t.event.prizePool);
+      if (poolText) embed.addFields({ name: '💰 Prize pool', value: poolText.slice(0, 1024), inline: false });
     }
 
     // Format/stages summary
